@@ -34,8 +34,8 @@ void Xrotz(double theta, MatrixXd* X) {
 }
 
 void dXrotz(double theta, MatrixXd* dX) {
-	double dc = -sin(theta); 
-	double ds = cos(theta); 
+	double dc = -sin(theta);
+	double ds = cos(theta);
 
 	(*dX).resize(6,6);
 	*dX << dc, ds, 0, 0, 0, 0,
@@ -58,11 +58,11 @@ void Xtrans(Vector3d r, MatrixXd* X) {
 
 void dXtrans(MatrixXd* dX) {
  	(*dX).resize(36,3);
-	(*dX)(4,2) = -1; 
-	(*dX)(5,1) = 1; 
-	(*dX)(9,2) = 1; 
-	(*dX)(11,0) = -1; 
-	(*dX)(15,1) = -1; 
+	(*dX)(4,2) = -1;
+	(*dX)(5,1) = 1;
+	(*dX)(9,2) = 1;
+	(*dX)(11,0) = -1;
+	(*dX)(15,1) = -1;
 	(*dX)(16,0) = 1;
 }
 
@@ -84,17 +84,17 @@ void jcalc(int pitch, double q, MatrixXd* Xj, VectorXd* S) {
 	if (pitch == 0) { // revolute joint
 	  	Xrotz(q,Xj);
 	    *S << 0,0,1,0,0,0;
-	}	
+	}
 	else if (pitch == INF) { // prismatic joint
   		Xtrans(Vector3d(0.0,0.0,q),Xj);
   		*S << 0,0,0,0,0,1;
 	}
 	else { // helical joint
 		MatrixXd A(6,6);
-		MatrixXd B(6,6);  		
+		MatrixXd B(6,6);
 		Xrotz(q,&A);
 	    Xtrans(Vector3d(0.0,0.0,q*pitch),&B);
-		*Xj = A*B;		
+		*Xj = A*B;
   		*S << 0,0,1,0,0,pitch;
 	}
 }
@@ -106,7 +106,7 @@ void djcalc(int pitch, double q, MatrixXd* dXj) {
   		dXrotz(q,dXj);
 	}
 	else if (pitch == INF) { // prismatic joint
-  		dXtransPitch(dXj); 
+  		dXtransPitch(dXj);
     }
 	else { // helical joint
 	    MatrixXd X(6,6),Xj(6,6),dXrz(6,6),dXjp(6,6);
@@ -144,7 +144,7 @@ MatrixXd crf(VectorXd v)
 
 void dcrm(VectorXd v, VectorXd x, MatrixXd dv, MatrixXd dx, MatrixXd* dvcross) {
  	(*dvcross).resize(6,dv.cols());
- 	(*dvcross).row(0) = -dv.row(2)*x[1] + dv.row(1)*x[2] - v[2]*dx.row(1) + v[1]*dx.row(2); 
+ 	(*dvcross).row(0) = -dv.row(2)*x[1] + dv.row(1)*x[2] - v[2]*dx.row(1) + v[1]*dx.row(2);
 	(*dvcross).row(1) =  dv.row(2)*x[0] - dv.row(0)*x[2] + v[2]*dx.row(0) - v[0]*dx.row(2);
   	(*dvcross).row(2) = -dv.row(1)*x[0] + dv.row(0)*x[1] - v[1]*dx.row(0) + v[0]*dx.row(1);
   	(*dvcross).row(3) = -dv.row(5)*x[1] + dv.row(4)*x[2] - dv.row(2)*x[4] + dv.row(1)*x[5] - v[5]*dx.row(1) + v[4]*dx.row(2) - v[2]*dx.row(4) + v[1]*dx.row(5);
@@ -166,13 +166,13 @@ void dcrf(VectorXd v, VectorXd x, MatrixXd dv, MatrixXd dx, MatrixXd* dvcross) {
 Matrix3d rotz(double theta) {
 	// returns 3D rotation matrix (about the z axis)
 	Matrix3d M;
-	double c=cos(theta); 
+	double c=cos(theta);
 	double s=sin(theta);
 	M << c,-s, 0,
 		 s, c, 0,
 		 0, 0, 1;
 	return M;
-} 
+}
 
 void Tjcalc(int pitch, double q, Matrix4d* TJ)
 {
@@ -190,10 +190,10 @@ void Tjcalc(int pitch, double q, Matrix4d* TJ)
 
 void dTjcalc(int pitch, double q, Matrix4d* dTJ)
 {
-	double s=sin(q); 
+	double s=sin(q);
 	double c=cos(q);
   	if (pitch==0) { // revolute joint
-  		*dTJ << -s,-c, 0, 0, 
+  		*dTJ << -s,-c, 0, 0,
   				 c,-s, 0, 0,
   				 0, 0, 0, 0,
   				 0, 0, 0, 0;
@@ -215,7 +215,7 @@ void ddTjcalc(int pitch, double q, Matrix4d* ddTJ)
   	double c = cos(q);
   	double s = sin(q);
 
-  	if (pitch==0) { // revolute joint  	
+  	if (pitch==0) { // revolute joint
   		*ddTJ << -c, s, 0, 0,
   				 -s,-c, 0, 0,
   				  0, 0, 0, 0,
@@ -286,18 +286,18 @@ void myrealloc(T* &ptr, int old_size, int new_size)
 void RigidBodyManipulator::resize(int ndof, int num_featherstone_bodies, int num_rigid_body_objects, int num_rigid_body_frames)
 {
   int last_num_dof = num_dof, last_NB = NB, last_num_bodies = num_bodies, last_num_frames = num_frames;
-  
+
   num_dof = ndof;
   if (num_dof != last_num_dof) {
     myrealloc(joint_limit_min,last_num_dof,num_dof);
     myrealloc(joint_limit_max,last_num_dof,num_dof);
   }
-  
+
   if (num_featherstone_bodies<0)
     NB = ndof;
   else
     NB = num_featherstone_bodies;
-  
+
   if (NB != last_NB) {
     myrealloc(pitch,last_NB,NB);
     myrealloc(parent,last_NB,NB);
@@ -308,14 +308,14 @@ void RigidBodyManipulator::resize(int ndof, int num_featherstone_bodies, int num
     myrealloc(coulomb_window,last_NB,NB);
     myrealloc(Xtree,last_NB,NB);
     myrealloc(I,last_NB,NB);
-    
+
     myrealloc(S,last_NB,NB);
     myrealloc(Xup,last_NB,NB);
     myrealloc(v,last_NB,NB);
     myrealloc(avp,last_NB,NB);
     myrealloc(fvp,last_NB,NB);
     myrealloc(IC,last_NB,NB);
-    
+
     for(int i=last_NB; i < NB; i++) {
       Xtree[i] = MatrixXd::Zero(6,6);
       I[i] = MatrixXd::Zero(6,6);
@@ -327,21 +327,21 @@ void RigidBodyManipulator::resize(int ndof, int num_featherstone_bodies, int num
       IC[i] = MatrixXd::Zero(6,6);
     }
   }
-  
+
   if (num_rigid_body_objects<0)
     num_bodies = NB+1;  // this was my old assumption, so leave it here as the default behavior
   else
     num_bodies = num_rigid_body_objects;
-  
+
   if (num_bodies != last_num_bodies) {
     myrealloc(bodies,last_num_bodies,num_bodies);
-    
+
     for(int i=0; i < num_bodies; i++) bodies[i].setN(NB);
     for(int i=last_num_bodies; i<num_bodies; i++) bodies[i].dofnum = i-1;  // setup default dofnums
-    
+
     collision_model->resize(num_bodies);
   }
-  
+
   num_frames = num_rigid_body_frames;
   if (num_frames != last_num_frames) {
   	myrealloc(frames,last_num_frames,num_frames);
@@ -372,7 +372,7 @@ void RigidBodyManipulator::resize(int ndof, int num_featherstone_bodies, int num
       }
     }
     //     dcross.resize(6,n);
-    
+
     dvdq = new MatrixXd[NB];
     dvdqd = new MatrixXd[NB];
     davpdq = new MatrixXd[NB];
@@ -419,15 +419,15 @@ void RigidBodyManipulator::resize(int ndof, int num_featherstone_bodies, int num
       dXup[i] = MatrixXd::Zero(6,6);
     }
   }
-  
+
   Xg = MatrixXd::Zero(6,6); // spatial centroidal projection matrix for a single body
   dXg = MatrixXd::Zero(6,6);  // dXg_dq * qd
   Xcom = MatrixXd::Zero(6,6); // spatial transform from centroid to world
-  Jcom = MatrixXd::Zero(3,num_dof); 
+  Jcom = MatrixXd::Zero(3,num_dof);
   dXcom = MatrixXd::Zero(6,6);
   Xi = MatrixXd::Zero(6,6);
   dXidq = MatrixXd::Zero(6,6);
-  
+
   initialized = false;
   kinematicsInit = false;
   if (last_num_dof>0) {
@@ -458,14 +458,14 @@ RigidBodyManipulator::~RigidBodyManipulator() {
     delete[] coulomb_window;
     delete[] Xtree;
     delete[] I;
-    
+
     delete[] S;
     delete[] Xup;
     delete[] v;
     delete[] avp;
     delete[] fvp;
     delete[] IC;
-    
+
     delete[] dXupdq;
     for (int i=0; i<NB; i++) {
       delete[] dIC[i];
@@ -485,7 +485,7 @@ RigidBodyManipulator::~RigidBodyManipulator() {
 
   if (num_bodies>0)
     delete[] bodies;
-  
+
   if (num_frames>0)
   	delete[] frames;
 
@@ -495,16 +495,16 @@ RigidBodyManipulator::~RigidBodyManipulator() {
   }
 }
 
-void RigidBodyManipulator::compile(void) 
+void RigidBodyManipulator::compile(void)
 {
   num_contact_pts = 0;
   for (int i=0; i<num_bodies; i++) {
     num_contact_pts += bodies[i].contact_pts.cols();
-            
+
     // precompute sparsity pattern for each rigid body
     bodies[i].computeAncestorDOFs(this);
-  }  
-  
+  }
+
   initialized=true;
 }
 
@@ -519,7 +519,7 @@ void RigidBodyManipulator::updateCollisionElements(const int body_ind)
   collision_model->updateElementsForBody(body_ind, bodies[body_ind].T);
 };
 
-bool RigidBodyManipulator::setCollisionFilter(const int body_ind, 
+bool RigidBodyManipulator::setCollisionFilter(const int body_ind,
                                               const uint16_t group,
                                               const uint16_t mask)
 {
@@ -535,11 +535,11 @@ bool RigidBodyManipulator::getPairwiseCollision(const int body_indA, const int b
   return collision_model->getPairwiseCollision(body_indA,body_indB,ptsA,ptsB,normals);
 };
 
-bool RigidBodyManipulator::getPairwisePointCollision(const int body_indA, 
-                                                     const int body_indB, 
-                                                     const int body_collision_indA, 
-                                                     Vector3d &ptA, 
-                                                     Vector3d &ptB, 
+bool RigidBodyManipulator::getPairwisePointCollision(const int body_indA,
+                                                     const int body_indB,
+                                                     const int body_collision_indA,
+                                                     Vector3d &ptA,
+                                                     Vector3d &ptB,
                                                      Vector3d &normal)
 {
   if (collision_model->getPairwisePointCollision(body_indA, body_indB,
@@ -554,9 +554,9 @@ bool RigidBodyManipulator::getPairwisePointCollision(const int body_indA,
   }
 };
 
-bool RigidBodyManipulator::getPointCollision(const int body_ind, 
-                                             const int body_collision_ind, 
-                                             Vector3d &ptA, Vector3d &ptB, 
+bool RigidBodyManipulator::getPointCollision(const int body_ind,
+                                             const int body_collision_ind,
+                                             Vector3d &ptA, Vector3d &ptB,
                                              Vector3d &normal)
 {
   if (collision_model->getPointCollision(body_ind, body_collision_ind, ptA,ptB,
@@ -575,13 +575,13 @@ bool RigidBodyManipulator::getPairwiseClosestPoint(const int body_indA, const in
   return collision_model->getClosestPoints(body_indA,body_indB,ptA,ptB,normal,distance);
 };
 
-bool RigidBodyManipulator::closestPointsAllBodies(vector<int>& bodyA_idx, 
-                                                       vector<int>& bodyB_idx, 
-                                                       MatrixXd& ptsA, 
+bool RigidBodyManipulator::closestPointsAllBodies(vector<int>& bodyA_idx,
+                                                       vector<int>& bodyB_idx,
+                                                       MatrixXd& ptsA,
                                                        MatrixXd& ptsB,
-                                                       MatrixXd& normal, 
+                                                       MatrixXd& normal,
                                                        VectorXd& distance,
-                                                       MatrixXd& JA, 
+                                                       MatrixXd& JA,
                                                        MatrixXd& JB,
                                                        MatrixXd& Jd)
 {
@@ -595,12 +595,12 @@ bool RigidBodyManipulator::closestPointsAllBodies(vector<int>& bodyA_idx,
   JA = MatrixXd::Zero(3*num_pts,num_dof);
   JB = MatrixXd::Zero(3*num_pts,num_dof);
   Jd = MatrixXd::Zero(num_pts,num_dof);
-  MatrixXd JA_i = MatrixXd::Zero(3,num_dof);     
-  MatrixXd JB_i = MatrixXd::Zero(3,num_dof);     
+  MatrixXd JA_i = MatrixXd::Zero(3,num_dof);
+  MatrixXd JB_i = MatrixXd::Zero(3,num_dof);
   for (int i = 0; i < num_pts; ++i) {
     Vector3d xA, xB;
-    VectorXd ptA_on_body(4); 
-    VectorXd ptB_on_body(4); 
+    VectorXd ptA_on_body(4);
+    VectorXd ptB_on_body(4);
     bodyKin(bodyA_idx.at(i),ptsA_1.col(i),xA);
     bodyKin(bodyB_idx.at(i),ptsB_1.col(i),xB);
     ptA_on_body << xA, 1;
@@ -667,7 +667,7 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
   Matrix4d fb_dTJ[6], fb_dTJdot[6], fb_dTmult[6], fb_ddTJ[3][3];  // will be 7 when quats implemented...
 
   Matrix3d rx,drx,ddrx,ry,dry,ddry,rz,drz,ddrz;
-  
+
   for (i = 0; i < num_bodies; i++) {
     int parent = bodies[i].parent;
     if (parent < 0) {
@@ -676,7 +676,7 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
     } else if (bodies[i].floating == 1) {
       double qi[6];
       for (j=0; j<6; j++) qi[j] = q[bodies[i].dofnum+j];
-      
+
       rotx(qi[3],rx,drx,ddrx);
       roty(qi[4],ry,dry,ddry);
       rotz(qi[5],rz,drz,ddrz);
@@ -688,12 +688,12 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
 
       Tmult = bodies[i].Ttree * Tbinv * TJ * Tb;
       bodies[i].T = bodies[parent].T * Tmult;
-      
+
       // see notes below
       bodies[i].dTdq = bodies[parent].dTdq * Tmult;
       dTmult = bodies[i].Ttree * Tbinv * dTJ * Tb;
       TdTmult = bodies[parent].T * dTmult;
-      
+
       fb_dTJ[0] << 0,0,0,1, 0,0,0,0, 0,0,0,0, 0,0,0,0;
       fb_dTJ[1] << 0,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,0;
       fb_dTJ[2] << 0,0,0,0, 0,0,0,0, 0,0,0,1, 0,0,0,0;
@@ -774,7 +774,7 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
         dTdotmult = bodies[i].Ttree * Tbinv * TJdot * Tb;
         bodies[i].Tdot = bodies[parent].Tdot*Tmult + bodies[parent].T * dTdotmult;
 
-        bodies[i].dTdqdot = bodies[parent].dTdqdot* Tmult + bodies[parent].dTdq * dTdotmult;  
+        bodies[i].dTdqdot = bodies[parent].dTdqdot* Tmult + bodies[parent].dTdq * dTdotmult;
 
         for (int j=0; j<6; j++) {
           dTdotmult = bodies[parent].Tdot*fb_dTmult[j] + bodies[parent].T*bodies[i].Ttree*Tbinv*fb_dTJdot[j]*Tb;
@@ -783,34 +783,34 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
           bodies[i].dTdqdot.row(bodies[i].dofnum + j + 2*num_dof) += dTdotmult.row(2);
         }
       }
-      
+
     } else if (bodies[i].floating == 2) {
       cerr << "mex kinematics for quaternion floating bases are not implemented yet" << endl;
     } else {
       double qi = q[bodies[i].dofnum];
       Tjcalc(bodies[i].pitch,qi,&TJ);
       dTjcalc(bodies[i].pitch,qi,&dTJ);
-      
+
       Tb = bodies[i].T_body_to_joint;
       Tbinv = Tb.inverse();
 
       Tmult = bodies[i].Ttree * Tbinv * TJ * Tb;
-      
+
       bodies[i].T = bodies[parent].T * Tmult;
 
       /*
        * note the unusual format of dTdq(chosen for efficiently calculating jacobians from many pts)
        * dTdq = [dT(1,:)dq1; dT(1,:)dq2; ...; dT(1,:)dqN; dT(2,dq1) ...]
        */
-      
+
       bodies[i].dTdq = bodies[parent].dTdq * Tmult;  // note: could only compute non-zero entries here
-      
+
       dTmult = bodies[i].Ttree * Tbinv * dTJ * Tb;
       TdTmult = bodies[parent].T * dTmult;
       bodies[i].dTdq.row(bodies[i].dofnum) += TdTmult.row(0);
       bodies[i].dTdq.row(bodies[i].dofnum + num_dof) += TdTmult.row(1);
       bodies[i].dTdq.row(bodies[i].dofnum + 2*num_dof) += TdTmult.row(2);
-      
+
       if (b_compute_second_derivatives) {
         //ddTdqdq = [d(dTdq)dq1; d(dTdq)dq2; ...]
         //	bodies[i].ddTdqdq = bodies[parent].ddTdqdq * Tmult; // pushed this into the loop below to exploit the sparsity
@@ -825,7 +825,7 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
 
         // ind = reshape(reshape(body.dofnum+0:num_dof:3*num_dof*num_dof,3,[])',[],1); % ddTdqidq
         for (j = 0; j < 3; j++) {
-          for (k = 0; k < num_dof; k++) { 
+          for (k = 0; k < num_dof; k++) {
             if (k == bodies[i].dofnum) {
               bodies[i].ddTdqdq.row(bodies[i].dofnum + (3*k+j)*num_dof) += dTdTmult.row(j*num_dof+k);
             } else {
@@ -833,15 +833,15 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
             }
           }
         }
-        
+
         ddTjcalc(bodies[i].pitch,qi,&ddTJ);
         TddTmult = bodies[parent].T*bodies[i].Ttree * Tbinv * ddTJ * Tb;
-        
+
         bodies[i].ddTdqdq.row(3*num_dof*(bodies[i].dofnum) + bodies[i].dofnum) += TddTmult.row(0);
         bodies[i].ddTdqdq.row(3*num_dof*(bodies[i].dofnum) + bodies[i].dofnum + num_dof) += TddTmult.row(1);
         bodies[i].ddTdqdq.row(3*num_dof*(bodies[i].dofnum) + bodies[i].dofnum + 2*num_dof) += TddTmult.row(2);
       }
-      
+
       if (qd) {
         double qdi = qd[bodies[i].dofnum];
         TJdot = dTJ*qdi;
@@ -852,7 +852,7 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
         dTdotmult = bodies[i].Ttree * Tbinv * TJdot * Tb;
         bodies[i].Tdot = bodies[parent].Tdot*Tmult + bodies[parent].T * dTdotmult;
 //        body.dTdqdot = body.parent.dTdqdot*body.Ttree*inv(body.T_body_to_joint)*TJ*body.T_body_to_joint + body.parent.dTdq*body.Ttree*inv(body.T_body_to_joint)*TJdot*body.T_body_to_joint;
-        bodies[i].dTdqdot = bodies[parent].dTdqdot* Tmult + bodies[parent].dTdq * dTdotmult;  
+        bodies[i].dTdqdot = bodies[parent].dTdqdot* Tmult + bodies[parent].dTdq * dTdotmult;
 
 //        body.dTdqdot(this_dof_ind,:) = body.dTdqdot(this_dof_ind,:) + body.parent.Tdot(1:3,:)*body.Ttree*inv(body.T_body_to_joint)*dTJ*body.T_body_to_joint + body.parent.T(1:3,:)*body.Ttree*inv(body.T_body_to_joint)*dTJdot*body.T_body_to_joint;
         dTdotmult = bodies[parent].Tdot*dTmult + bodies[parent].T*bodies[i].Ttree*Tbinv*dTJdot*Tb;
@@ -889,15 +889,15 @@ void RigidBodyManipulator::doKinematics(double* q, bool b_compute_second_derivat
 
 
 template <typename Derived>
-void RigidBodyManipulator::getCMM(double* const q, double* const qd, MatrixBase<Derived> &A, MatrixBase<Derived> &Adot) 
+void RigidBodyManipulator::getCMM(double* const q, double* const qd, MatrixBase<Derived> &A, MatrixBase<Derived> &Adot)
 {
   // returns the centroidal momentum matrix as described in Orin & Goswami 2008
-  // 
-  // h = A*qd, where h(4:6) is the total linear momentum and h(1:3) is the 
+  //
+  // h = A*qd, where h(4:6) is the total linear momentum and h(1:3) is the
   // total angular momentum in the centroid frame (world fram translated to COM).
 
   Vector3d com; getCOM(com);
-  Xtrans(-com,&Xcom); 
+  Xtrans(-com,&Xcom);
 
   getCOMJac(Jcom);
   Map<VectorXd> qdvec(qd,num_dof);
@@ -917,16 +917,16 @@ void RigidBodyManipulator::getCMM(double* const q, double* const qd, MatrixBase<
     Ic[i] = I[i];
     dIc[i] = MatrixXd::Zero(6,6);
   }
-  
+
   int n;
   for (int i=NB-1; i >= 0; i--) {
     n = dofnum[i];
     jcalc(pitch[i],q[n],&Xi,&phi[i]);
     Xup[i] = Xi * Xtree[i];
- 
+
     djcalc(pitch[i], q[n], &dXidq);
     dXup[i] = dXidq * Xtree[i] * qd[n];
-     
+
     if (parent[i] >= 0) {
       Ic[parent[i]] += Xup[i].transpose()*Ic[i]*Xup[i];
       dIc[parent[i]] += (dXup[i].transpose()*Ic[i] + Xup[i].transpose()*dIc[i])*Xup[i] + Xup[i].transpose()*Ic[i]*dXup[i];
@@ -943,9 +943,9 @@ void RigidBodyManipulator::getCMM(double* const q, double* const qd, MatrixBase<
       Xworld[i] = Xup[i];
       dXworld[i] = dXup[i];
     }
- 
+
     Xg = Xworld[i] * Xcom; // spatial transform from centroid to body
-    dXg = dXworld[i] * Xcom + Xworld[i] * dXcom; 
+    dXg = dXworld[i] * Xcom + Xworld[i] * dXcom;
 
     n = dofnum[i];
     A.col(n) = Xg.transpose()*Ic[i]*phi[i];
@@ -960,7 +960,7 @@ void RigidBodyManipulator::getCOM(MatrixBase<Derived> &com, const std::set<int> 
   double m = 0.0;
   double bm;
   com = Vector3d::Zero();
-  
+
   for (int i=0; i<num_bodies; i++) {
     set<int>::iterator robotnum_it = robotnum.find(bodies[i].robotnum);
     if(robotnum_it != robotnum.end())
@@ -981,7 +981,7 @@ void RigidBodyManipulator::getCOMJac(MatrixBase<Derived> &Jcom, const std::set<i
   double m = 0.0;
   double bm;
   Jcom = MatrixXd::Zero(3,num_dof);
-  
+
   for (int i=0; i<num_bodies; i++) {
     set<int>::iterator robotnum_it = robotnum.find(bodies[i].robotnum);
     if(robotnum_it != robotnum.end())
@@ -1002,7 +1002,7 @@ void RigidBodyManipulator::getCOMJacDot(MatrixBase<Derived> &Jcomdot, const std:
   double m = 0.0;
   double bm;
   Jcomdot = MatrixXd::Zero(3,num_dof);
-  
+
   for (int i=0; i<num_bodies; i++) {
     set<int>::iterator robotnum_it = robotnum.find(bodies[i].robotnum);
     if(robotnum_it != robotnum.end())
@@ -1023,7 +1023,7 @@ void RigidBodyManipulator::getCOMdJac(MatrixBase<Derived> &dJcom, const std::set
   double m = 0.0;
   double bm;
   dJcom = MatrixXd::Zero(3,num_dof*num_dof);
-  
+
   for (int i=0; i<num_bodies; i++) {
     set<int>::iterator robotnum_it = robotnum.find(bodies[i].robotnum);
     if(robotnum_it != robotnum.end())
@@ -1041,7 +1041,7 @@ void RigidBodyManipulator::getCOMdJac(MatrixBase<Derived> &dJcom, const std::set
 int RigidBodyManipulator::getNumContacts(const set<int> &body_idx)
 {
   int n=0,nb=body_idx.size(),bi;
-  if (nb==0) nb=num_bodies; 
+  if (nb==0) nb=num_bodies;
   set<int>::iterator iter = body_idx.begin();
   for (int i=0; i<nb; i++) {
     if (body_idx.size()==0) bi=i;
@@ -1056,7 +1056,7 @@ template <typename Derived>
 void RigidBodyManipulator::getContactPositions(MatrixBase<Derived> &pos, const set<int> &body_idx)
 {
   int n=0,nc,nb=body_idx.size(),bi;
-  if (nb==0) nb=num_bodies; 
+  if (nb==0) nb=num_bodies;
   set<int>::iterator iter = body_idx.begin();
   MatrixXd p;
   for (int i=0; i<nb; i++) {
@@ -1078,7 +1078,7 @@ template <typename Derived>
 void RigidBodyManipulator::getContactPositionsJac(MatrixBase<Derived> &J, const set<int> &body_idx)
 {
   int n=0,nc,nb=body_idx.size(),bi;
-  if (nb==0) nb=num_bodies; 
+  if (nb==0) nb=num_bodies;
   set<int>::iterator iter = body_idx.begin();
   MatrixXd p;
   for (int i=0; i<nb; i++) {
@@ -1098,7 +1098,7 @@ template <typename Derived>
 void RigidBodyManipulator::getContactPositionsJacDot(MatrixBase<Derived> &Jdot, const set<int> &body_idx)
 {
   int n=0,nc,nb=body_idx.size(),bi;
-  if (nb==0) nb=num_bodies; 
+  if (nb==0) nb=num_bodies;
   set<int>::iterator iter = body_idx.begin();
   MatrixXd p;
   for (int i=0; i<nb; i++) {
@@ -1140,20 +1140,20 @@ void RigidBodyManipulator::forwardKin(const int body_or_frame_id, const MatrixBa
 {
   int n_pts = pts.cols(); Matrix4d Tframe;
   int body_ind = parseBodyOrFrameID(body_or_frame_id,Tframe);
-  
+
   MatrixXd T = bodies[body_ind].T.topLeftCorner(3,4)*Tframe;
-  
+
   if (rotation_type == 0) {
     x = T*pts;
   } else if (rotation_type == 1) {
     Vector3d rpy;
     rpy << atan2(T(2,1),T(2,2)), atan2(-T(2,0),sqrt(T(2,1)*T(2,1) + T(2,2)*T(2,2))), atan2(T(1,0),T(0,0));
     // NOTE: we're assuming an X-Y-Z convention was used to construct T
-    
+
     x = MatrixXd::Zero(6,n_pts);
     x.block(0,0,3,n_pts) = T*pts;
     x.block(3,0,3,n_pts) = rpy.replicate(1,n_pts);
-  } 
+  }
   else if(rotation_type == 2)
   {
     Vector4d quat, case_check;
@@ -1218,14 +1218,14 @@ void RigidBodyManipulator::forwardJac(const int body_or_frame_id, const MatrixBa
   MatrixXd tmp =dTdq*pts;
   MatrixXd Jt = Map<MatrixXd>(tmp.data(),num_dof,3*n_pts);
   J.topLeftCorner(3*n_pts,num_dof) = Jt.transpose();
-  
+
   if (rotation_type == 1) {
     Matrix3d R = (bodies[body_ind].T*Tframe).topLeftCorner(3,3);
     /*
      * note the unusual format of dTdq(chosen for efficiently calculating jacobians from many pts)
      * dTdq = [dT(1,:)dq1; dT(1,:)dq2; ...; dT(1,:)dqN; dT(2,dq1) ...]
      */
-    
+
     VectorXd dR21_dq(num_dof),dR22_dq(num_dof),dR20_dq(num_dof),dR00_dq(num_dof),dR10_dq(num_dof);
     for (int i=0; i<num_dof; i++) {
       dR21_dq(i) = dTdq(2*num_dof+i,1);
@@ -1236,13 +1236,13 @@ void RigidBodyManipulator::forwardJac(const int body_or_frame_id, const MatrixBa
     }
     double sqterm1 = R(2,1)*R(2,1) + R(2,2)*R(2,2);
     double sqterm2 = R(0,0)*R(0,0) + R(1,0)*R(1,0);
-    
+
     MatrixXd Jr = MatrixXd::Zero(3,num_dof);
-    
+
     Jr.block(0,0,1,num_dof) = ((R(2,2)*dR21_dq - R(2,1)*dR22_dq)/sqterm1).transpose();
     Jr.block(1,0,1,num_dof) = ((-sqrt(sqterm1)*dR20_dq + R(2,0)/sqrt(sqterm1)*(R(2,1)*dR21_dq + R(2,2)*dR22_dq) )/(R(2,0)*R(2,0) + R(2,1)*R(2,1) + R(2,2)*R(2,2))).transpose();
     Jr.block(2,0,1,num_dof)= ((R(0,0)*dR10_dq - R(1,0)*dR00_dq)/sqterm2).transpose();
-    
+
     MatrixXd Jfull = MatrixXd::Zero(2*3*n_pts,num_dof);
     for (int i=0; i<n_pts; i++) {
       Jfull.block(i*6,0,3,num_dof) = J.block(i*3,0,3,num_dof);
@@ -1251,7 +1251,7 @@ void RigidBodyManipulator::forwardJac(const int body_or_frame_id, const MatrixBa
     J=Jfull;
   } else if(rotation_type == 2) {
     Matrix3d R = (bodies[body_ind].T*Tframe).topLeftCorner(3,3);
-    
+
     VectorXd dR21_dq(num_dof),dR22_dq(num_dof),dR20_dq(num_dof),dR00_dq(num_dof),dR10_dq(num_dof),dR01_dq(num_dof),dR02_dq(num_dof),dR11_dq(num_dof),dR12_dq(num_dof);
     for (int i=0; i<num_dof; i++) {
       dR21_dq(i) = dTdq(2*num_dof+i,1);
@@ -1264,7 +1264,7 @@ void RigidBodyManipulator::forwardJac(const int body_or_frame_id, const MatrixBa
       dR11_dq(i) = dTdq(num_dof+i,1);
       dR12_dq(i) = dTdq(num_dof+i,2);
     }
-    
+
   	Vector4d case_check;
   	case_check << R(0,0)+R(1,1)+R(2,2), R(0,0)-R(1,1)-R(2,2), -R(0,0)+R(1,1)-R(2,2), -R(0,0)-R(1,1)+R(2,2);
   	int ind; double val = case_check.maxCoeff(&ind);
@@ -1321,13 +1321,13 @@ void RigidBodyManipulator::forwardJacDot(const int body_or_frame_id, const Matri
 {
   int n_pts = pts.cols(); Matrix4d Tframe;
   int body_ind = parseBodyOrFrameID(body_or_frame_id,Tframe);
-	
+
 	MatrixXd tmp = bodies[body_ind].dTdqdot*Tframe*pts;
 	MatrixXd Jdott = Map<MatrixXd>(tmp.data(),num_dof,3*n_pts);
 	Jdot = Jdott.transpose();
 
 	if (rotation_type==1) {
-		
+
 		MatrixXd dTdqdot =  bodies[body_ind].dTdqdot*Tframe;
 		Matrix3d R = (bodies[body_ind].T*Tframe).topLeftCorner(3,3);
 		/*
@@ -1366,7 +1366,7 @@ void RigidBodyManipulator::forwarddJac(const int body_or_frame_id, const MatrixB
 {
   int n_pts = pts.cols(); Matrix4d Tframe;
   int body_ind = parseBodyOrFrameID(body_or_frame_id,Tframe);
-  
+
   int i,j;
   MatrixXd dJ_reshaped = MatrixXd(num_dof, 3*n_pts*num_dof);
   MatrixXd tmp = MatrixXd(3*num_dof,n_pts);
@@ -1391,13 +1391,13 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
   VectorXd vJ(6), fh(6), dfh(6), dvJdqd(6);
   MatrixXd XJ(6,6), dXJdq(6,6);
   int i,j,k,n,np;
-  
+
   for (i=0; i<NB; i++) {
     n = dofnum[i];
     jcalc(pitch[i],q[n],&XJ,&(S[i]));
     vJ = S[i] * qd[n];
     Xup[i] = XJ * Xtree[i];
-    
+
     if (parent[i] < 0) {
       v[i] = vJ;
       avp[i] = Xup[i] * (-a_grav);
@@ -1409,17 +1409,17 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
     if (f_ext)
       fvp[i] = fvp[i] - f_ext->col(i);
     IC[i] = I[i];
-    
+
     //Calculate gradient information if it is requested
     if (dH || dC) {
       djcalc(pitch[i], q[n], &dXJdq);
       dXupdq[i] = dXJdq * Xtree[i];
-      
+
       for (j=0; j<NB; j++) {
         dIC[i][j] = MatrixXd::Zero(6,6);
       }
     }
-    
+
     if (dC) {
       dvJdqd = S[i];
       if (parent[i] < 0) {
@@ -1431,66 +1431,66 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
         dvdq[i].col(n) += dXupdq[i]*v[j];
         dvdqd[i] = Xup[i]*dvdqd[j];
         dvdqd[i].col(n) += dvJdqd;
-        
+
         davpdq[i] = Xup[i]*davpdq[j];
         davpdq[i].col(n) += dXupdq[i]*avp[j];
         for (k=0; k < NB; k++) {
           dcrm(v[i],vJ,dvdq[i].col(k),VectorXd::Zero(6),&(dcross));
           davpdq[i].col(k) += dcross;
         }
-        
+
         dvJdqd_mat = MatrixXd::Zero(6,NB);
         dvJdqd_mat.col(n) = dvJdqd;
         dcrm(v[i],vJ,dvdqd[i],dvJdqd_mat,&(dcross));
         davpdqd[i] = Xup[i]*davpdqd[j] + dcross;
       }
-      
+
       dcrf(v[i],I[i]*v[i],dvdq[i],I[i]*dvdq[i],&(dcross));
       dfvpdq[i] = I[i]*davpdq[i] + dcross;
       dcrf(v[i],I[i]*v[i],dvdqd[i],I[i]*dvdqd[i],&(dcross));
       dfvpdqd[i] = I[i]*davpdqd[i] + dcross;
-      
+
     }
   }
-  
+
   for (i=(NB-1); i>=0; i--) {
     n = dofnum[i];
     C(n) = (S[i]).transpose() * fvp[i] + damping[i]*qd[n];
-    
+
     if (qd[n] >= coulomb_window[i]) {
       C(n) += coulomb_friction[i];
-    } 
+    }
     else if (qd[n] <= -coulomb_window[i]) {
       C(n) -= coulomb_friction[i];
-    } 
+    }
     else {
       C(n) += qd[n]/coulomb_window[i] * coulomb_friction[i];
-    } 
+    }
 
     if (dC) {
       (*dC).block(n,0,1,NB) = S[i].transpose()*dfvpdq[i];
       (*dC).block(n,NB,1,NB) = S[i].transpose()*dfvpdqd[i];
       (*dC)(n,NB+n) += damping[i];
-      
+
       if (qd[n]<0 && qd[n]>-coulomb_window[i]) {
         (*dC)(n,NB+n) -= 1/coulomb_window[i] * coulomb_friction[i];
-      } 
+      }
       else if (qd[n]>=0 && qd[n]<coulomb_window[i]) {
         (*dC)(n,NB+n) += 1/coulomb_window[i] * coulomb_friction[i];
-      } 
+      }
     }
-    
+
     if (parent[i] >= 0) {
       fvp[parent[i]] += (Xup[i]).transpose()*fvp[i];
       IC[parent[i]] += (Xup[i]).transpose()*IC[i]*Xup[i];
-      
+
       if (dH) {
         for (k=0; k < NB; k++) {
           dIC[parent[i]][k] += Xup[i].transpose()*dIC[i][k]*Xup[i];
         }
         dIC[parent[i]][i] += dXupdq[i].transpose()*IC[i]*Xup[i] + Xup[i].transpose()*IC[i]*dXupdq[i];
       }
-      
+
       if (dC) {
         dfvpdq[parent[i]] += Xup[i].transpose()*dfvpdq[i];
         dfvpdq[parent[i]].col(n) += dXupdq[i].transpose()*fvp[i];
@@ -1498,7 +1498,7 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
       }
     }
   }
-  
+
   for (i=0; i<NB; i++) {
     n = dofnum[i];
     fh = IC[i] * S[i];
@@ -1508,7 +1508,7 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
       fh = (Xup[j]).transpose() * fh;
       j = parent[j];
       np = dofnum[j];
-      
+
       H(n,np) = (S[j]).transpose() * fh;
       H(np,n) = H(n,np);
     }
@@ -1529,7 +1529,7 @@ void RigidBodyManipulator::HandC(double * const q, double * const qd, MatrixBase
             dfh = Xup[j].transpose() * dfh;
           }
           fh = Xup[j].transpose() * fh;
-          
+
           j = parent[j];
           np = dofnum[j];
           (*dH)(n + (np)*NB,k) = S[j].transpose() * dfh;
@@ -1594,6 +1594,64 @@ int RigidBodyManipulator::findLinkInd(string linkname, int robot)
   }
   delete[] name_match;
 }
+
+int RigidBodyManipulator::findFrameId(string framename, int robot)
+{
+  boost::algorithm::to_lower(framename);
+  cout << "frame name: " << framename << endl;
+  cout << "num frames: " << num_frames << endl;
+  bool* name_match = new bool[this->num_frames];
+  for(int i = 0; i < this->num_frames; i++)
+  {
+    string lower_framename = this->frames[i].name;
+    cout << lower_framename << endl;
+    boost::algorithm::to_lower(lower_framename);
+    if(lower_framename.find(framename) != string::npos)
+    {
+      name_match[i] = true;
+    }
+    else
+    {
+      name_match[i] = false;
+    }
+  }
+  if(robot != -1)
+  {
+    for(int i = 0; i < this->num_frames; i++)
+    {
+      if(name_match[i])
+      {
+        if(this->frames[i].body_ind >= this->num_bodies)
+        {
+          cerr<<"Frame has a body_ind which is larger than the number of bodies in this manipulator"<<endl;
+          return(NULL);
+        }
+        name_match[i] = this->bodies[this->frames[i].body_ind].robotnum == robot;
+      }
+    }
+  }
+  int num_match = 0;
+  int ind_match = -1;
+  for(int i = 0;i<this->num_frames;i++)
+  {
+    if(name_match[i])
+    {
+      num_match++;
+      ind_match = i;
+    }
+  }
+  if(num_match != 1)
+  {
+    cerr<<"couldn't find unique frame "<<framename<<endl;
+    return(NULL);
+  }
+  else
+  {
+    return ind_match;
+  }
+  delete[] name_match;
+}
+
 
 
 // explicit instantiations (required for linking):

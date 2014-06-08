@@ -23,7 +23,7 @@ using namespace std;
  */
 map<string,int>::const_iterator findWithSuffix(const map<string,int>& m, const string& str)
 {
-   
+
   auto first = m.begin();
   auto last = m.end();
 
@@ -46,7 +46,7 @@ map<string,int>::const_iterator findWithSuffix(const map<string,int>& m, const s
    */
   boost::regex re(boost::regex_replace(quotedStr, delim, "\\\\E\\\\d*\\\\Q\\1"));
 
-  auto flexibleNameMatch = 
+  auto flexibleNameMatch =
     [&](pair<string,int> p)->bool{return boost::regex_match(p.first,re);};
   //DEBUG
   //cout << "findWithSuffix: str = "<< str << endl;
@@ -69,7 +69,7 @@ void mexErrMsgIdandTxt(const char *errorid, const char *errormsg, ...)
   va_list vl;
   va_start(vl, errormsg);
   vprintf(errormsg, vl);
-  va_end(vl);  
+  va_end(vl);
   printf("\n");
   exit(1);
 }
@@ -141,7 +141,7 @@ void poseToTransform(const urdf::Pose& pose, Matrix4d& T)
 }
 
 URDFRigidBodyManipulator::URDFRigidBodyManipulator(void)
-: 
+:
   RigidBodyManipulator(0,0,1)
 {
 	bodies[0].linkname = "world";
@@ -154,7 +154,7 @@ bool URDFRigidBodyManipulator::addURDF(boost::shared_ptr<urdf::ModelInterface> _
 {
   robot_map.insert(make_pair(_urdf_model->getName(),(int)robot_name.size()));
   robot_name.push_back(_urdf_model->getName());
-  resize(num_dof + (int)dofname_to_dofnum.size(),-1,num_bodies + (int)jointname_to_jointnum.size());
+  resize(num_dof + (int)dofname_to_dofnum.size(),-1,num_bodies + (int)jointname_to_jointnum.size(), num_rigid_body_frames);
   for (map<string, boost::shared_ptr<urdf::Joint> >::iterator j=_urdf_model->joints_.begin(); j!=_urdf_model->joints_.end(); j++)
   {
     setJointLimits(_urdf_model,j->second,dofname_to_dofnum,this->joint_limit_min,this->joint_limit_max);
@@ -174,7 +174,7 @@ bool URDFRigidBodyManipulator::addURDF(boost::shared_ptr<urdf::ModelInterface> _
   joint_map.push_back(jointname_to_jointnum);
   dof_map.push_back(dofname_to_dofnum);
   urdf_model.push_back(_urdf_model);
-  
+
   for (map<string, boost::shared_ptr<urdf::Link> >::iterator l=_urdf_model->links_.begin(); l!=_urdf_model->links_.end(); l++) {
     int index, _dofnum;
     if (l->second->parent_joint) {
@@ -357,7 +357,7 @@ bool URDFRigidBodyManipulator::addURDF(boost::shared_ptr<urdf::ModelInterface> _
     }
   }
 
-  compile();  
+  compile();
   return true;
 }
 
@@ -532,14 +532,14 @@ boost::shared_ptr<ModelInterface> parseURDF(const string &xml_string)
     model.reset();
     return model;
   }
- 
+
   return model;
 }
 
 }
 
 /*
- * Checks if the string formed by concatenating `str` and `to_string(suffix)` 
+ * Checks if the string formed by concatenating `str` and `to_string(suffix)`
  * is present in the range [first,last)
  */
 bool isComboUnique(const string& str, int suffix,
@@ -549,8 +549,8 @@ bool isComboUnique(const string& str, int suffix,
 	return find(first,last,str + to_string(suffix)) == last;
 }
 
-/* 
- * Finds an integer, `suffix`, such that the concatenation of `str` and 
+/*
+ * Finds an integer, `suffix`, such that the concatenation of `str` and
  * `to_string(suffix)` is not present in the range [first,last)
  */
 int findSuffix(const string& str, int suffix,
@@ -585,7 +585,7 @@ void setJointNum(boost::shared_ptr<urdf::ModelInterface> urdf_model, boost::shar
   }
 
 //  printf("setting joint num for %s\n", j->name.c_str());
-  
+
   // recursively set parent num, then set j
   if (!j->parent_link_name.empty()) {
     map<string, boost::shared_ptr<urdf::Link> >::iterator plink = urdf_model->links_.find(j->parent_link_name);
@@ -676,7 +676,7 @@ bool URDFRigidBodyManipulator::addURDFfromXML(const string &xml_string, const st
   // set up floating base
     // note: i see no harm in adding the floating base here (even if the drake version does not have one)
     // because the base will be set to 0 and it adds minimal expense to the kinematic calculations
-  {  
+  {
     int dofnum=num_dof;
     int jointnum = num_bodies;
     string joint_name("base");
@@ -690,20 +690,20 @@ bool URDFRigidBodyManipulator::addURDFfromXML(const string &xml_string, const st
     dofname_to_dofnum.insert(make_pair(joint_name+"_roll",dofnum++));
     dofname_to_dofnum.insert(make_pair(joint_name+"_pitch",dofnum++));
     dofname_to_dofnum.insert(make_pair(joint_name+"_yaw",dofnum++));
-    
+
     for (map<string, boost::shared_ptr<urdf::Joint> >::iterator j=_urdf_model->joints_.begin(); j!=_urdf_model->joints_.end(); j++)
       setJointNum(_urdf_model,j->second,jointname_to_jointnum,dofname_to_dofnum,joint_name_set,jointnum,dofnum);
-    
+
 
     //for (map<string, int>::iterator j=jointname_to_jointnum.begin(); j!=jointname_to_jointnum.end(); j++)
     //printf("%s : %d\n",j->first.c_str(),j->second);
     //DEBUG
     //for (auto p : dofname_to_dofnum) {
-    //cout << "URDFRigidBodyManipulator::addURDFfromXML: p.first << " : " << p.second << endl; 
+    //cout << "URDFRigidBodyManipulator::addURDFfromXML: p.first << " : " << p.second << endl;
     //}
     //END_DEBUG
   }
-  
+
   // now populate my model class
   addURDF(_urdf_model,jointname_to_jointnum,dofname_to_dofnum,root_dir);
   return true;
@@ -723,7 +723,7 @@ URDFRigidBodyManipulator* loadURDFfromFile(const string &urdf_filename)
 
   string token;
   istringstream iss(urdf_filename);
-  
+
   while (getline(iss,token,':')) {
     fstream xml_file(token.c_str(), fstream::in);
   	string xml_string;
@@ -748,10 +748,10 @@ URDFRigidBodyManipulator* loadURDFfromFile(const string &urdf_filename)
     if (found != string::npos) {
       pathname = urdf_filename.substr(0,found);
     }
-    
+
     // parse URDF to get model
     model->addURDFfromXML(xml_string,pathname);
   }
-  
+
   return model;
 }

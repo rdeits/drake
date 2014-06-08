@@ -16,12 +16,12 @@ using namespace Eigen;
 
 extern std::set<int> emptyIntSet;  // was const std:set<int> emptyIntSet, but valgrind said I was leaking memory
 
-class RigidBodyManipulator 
+class RigidBodyManipulator
 {
 public:
   RigidBodyManipulator(int num_dof, int num_featherstone_bodies=-1, int num_rigid_body_objects=-1, int num_rigid_body_frames=0);
   ~RigidBodyManipulator(void);
-  
+
   void resize(int num_dof, int num_featherstone_bodies=-1, int num_rigid_body_objects=-1, int num_rigid_body_frames=0);
 
   void compile(void);  // call me after the model is loaded
@@ -46,10 +46,10 @@ public:
 
   template <typename Derived>
   void getContactPositions(MatrixBase<Derived> &pos, const std::set<int> &body_idx = emptyIntSet);
-  
+
   template <typename Derived>
   void getContactPositionsJac(MatrixBase<Derived> &J, const std::set<int> &body_idx = emptyIntSet);
-  
+
   template <typename Derived>
   void getContactPositionsJacDot(MatrixBase<Derived> &Jdot, const std::set<int> &body_idx = emptyIntSet);
 
@@ -76,7 +76,7 @@ public:
 
   void updateCollisionElements(const int body_ind);
 
-  bool setCollisionFilter(const int body_ind, const uint16_t group, 
+  bool setCollisionFilter(const int body_ind, const uint16_t group,
                           const uint16_t mask);
 
   bool getPairwiseCollision(const int body_indA, const int body_indB, MatrixXd &ptsA, MatrixXd &ptsB, MatrixXd &normals);
@@ -87,19 +87,22 @@ public:
 
   bool getPairwiseClosestPoint(const int body_indA, const int body_indB, Vector3d &ptA, Vector3d &ptB, Vector3d &normal, double &distance);
 
-  bool closestPointsAllBodies(std::vector<int>& bodyA_idx, 
-                                   std::vector<int>& bodyB_idx, 
-                                   MatrixXd& ptsA, 
+  bool closestPointsAllBodies(std::vector<int>& bodyA_idx,
+                                   std::vector<int>& bodyB_idx,
+                                   MatrixXd& ptsA,
                                    MatrixXd& ptsB,
-                                   MatrixXd& normal, 
+                                   MatrixXd& normal,
                                    VectorXd& distance,
-                                   MatrixXd& JA, 
+                                   MatrixXd& JA,
                                    MatrixXd& JB,
                                    MatrixXd& Jd);
 
   bool closestDistanceAllBodies(VectorXd& distance, MatrixXd& Jd);
-  
+
   int findLinkInd(std::string linkname, int robot = -1);
+  //@param robot   the index of the robot. robot = -1 means to look at all the robots
+
+  int findFrameId(std::string framename, int robot = -1);
   //@param robot   the index of the robot. robot = -1 means to look at all the robots
 public:
   std::vector<std::string> robot_name;
@@ -164,15 +167,15 @@ private:
 
   // preallocate for CMM function
   MatrixXd Xg; // spatial centroidal projection matrix
-  MatrixXd dXg;  // dXg_dq * qd  
+  MatrixXd dXg;  // dXg_dq * qd
   MatrixXd *Ic; // body spatial inertias
   MatrixXd *dIc; // derivative of body spatial inertias
   VectorXd *phi; // joint axis vectors
   MatrixXd *Xworld; // spatial transforms from world to each body
   MatrixXd *dXworld; // dXworld_dq * qd
-  MatrixXd *dXup; // dXup_dq * qd 
+  MatrixXd *dXup; // dXup_dq * qd
   MatrixXd Xcom; // spatial transform from centroid to world
-  MatrixXd Jcom; 
+  MatrixXd Jcom;
   MatrixXd dXcom;
   MatrixXd Xi;
   MatrixXd dXidq;
