@@ -9,17 +9,17 @@ rangecheck(seed_plan.footsteps(1).pos(6), -pi, pi);
 rangecheck(seed_plan.footsteps(2).pos(6), -pi, pi);
 
 nsteps = length(seed_plan.footsteps);
-num_precise_steps = nsteps;
 max_num_steps = seed_plan.params.max_num_steps + 2;
 min_num_steps = max([seed_plan.params.min_num_steps + 2, 3]);
 
 x = sdpvar(4, nsteps, 'full');
-cos_yaw = sdpvar(1, num_precise_steps, 'full');
-sin_yaw = sdpvar(1, num_precise_steps, 'full');
+cos_yaw = sdpvar(1, nsteps, 'full');
+sin_yaw = sdpvar(1, nsteps, 'full');
 yaw = x(4,:);
 
+skip = binvar(1, nsteps, 'full');
 
-trim = binvar(1, nsteps, 'full');
+% trim = binvar(1, nsteps, 'full');
 
 region = binvar(length(seed_plan.safe_regions), nsteps, 'full');
 
@@ -35,8 +35,8 @@ max_yaw = pi * ceil(seed_steps(6,1) / pi + 1);
 cos_boundaries = reshape(bsxfun(@plus, [min_yaw:pi:max_yaw; min_yaw:pi:max_yaw], [-(pi/2-1); (pi/2-1)]), 1, []);
 sin_boundaries = reshape(bsxfun(@plus, [min_yaw:pi:max_yaw; min_yaw:pi:max_yaw], [-1; 1]), 1, []);
 
-cos_sector = binvar(length(cos_boundaries) - 1, num_precise_steps, 'full');
-sin_sector = binvar(length(sin_boundaries) - 1, num_precise_steps, 'full');
+cos_sector = binvar(length(cos_boundaries) - 1, nsteps, 'full');
+sin_sector = binvar(length(sin_boundaries) - 1, nsteps, 'full');
 Constraints = [x(:,1) == seed_steps([1,2,3,6],1),...
                x(:,2) == seed_steps([1,2,3,6],2),...
                min_yaw <= yaw <= max_yaw,...
@@ -44,18 +44,21 @@ Constraints = [x(:,1) == seed_steps([1,2,3,6],1),...
                x(1:3,:) <= 100 + repmat(seed_steps(1:3,1), 1, nsteps)...
                -1 <= cos_yaw <= 1,...
                -1 <= sin_yaw <= 1,...
-               sum(region, 1) + trim == 1,...
+               sum(region, 1) + skip == 1,...
                sum(sin_sector, 1) == 1,...
                sum(cos_sector, 1) == 1,...
-               trim(1:2) == 1,...
-               trim(1:end-1) >= trim(2:end),...
+               skip(end-1:end) == 0,...
+               skip(1:2) == 0,...
+               skip(1:end-3) <= skip(2:end-2),...
+%                trim(1:2) == 1,...
+%                trim(1:end-1) >= trim(2:end),...
                ];
 
 % Enforce min number of steps
 Constraints = [Constraints, ...
-               sum(trim) <= nsteps - (min_num_steps - 2)];
+               sum(skip) <= nsteps - (min_num_steps - 4)];
 
-for j = 1:num_precise_steps
+for j = 1:nsteps
   for s = 1:length(cos_boundaries) - 1
     th0 = cos_boundaries(s);
     th1 = cos_boundaries(s+1);
@@ -69,7 +72,7 @@ for j = 1:num_precise_steps
   end
 end
 
-for j = 1:num_precise_steps
+for j = 1:nsteps
   for s = 1:length(sin_boundaries) - 1
     th0 = sin_boundaries(s);
     th1 = sin_boundaries(s+1);
@@ -83,7 +86,7 @@ for j = 1:num_precise_steps
   end
 end
 
-for j = 1:num_precise_steps
+for j = 1:nsteps
   for k = 1:size(sin_sector, 1)
     Constraints = [Constraints,...
                    sum(sin_sector(max(1,k-1):min(k+1,size(sin_sector,1)),j)) >= cos_sector(k,j),...
@@ -91,50 +94,61 @@ for j = 1:num_precise_steps
   end
 end
 
-for j = 3:num_precise_steps
+for j = 2:nsteps-1
   % Ensure that the foot doesn't yaw too much per step
-  if seed_plan.footsteps(j).frame_id == biped.foot_frame_id.left
+  if seed_plan.footsteps(j).frame_id == biped.foot_frame_id.right
     rel_foci = [foci(1,:); -foci(2,:)];
-    Constraints = [Constraints, ...
-                   implies(~trim(j), 0 <= yaw(j) - yaw(j-1) <= pi/8)];
+    yaw_range = [0, pi/8];
+%     Constraints = [Constraints, ...
+%                    implies(~trim(j), 0 <= yaw(j) - yaw(j-1) <= pi/8)];
     for k = 1:size(cos_sector, 1) - 1
       Constraints = [Constraints, sum(cos_sector(k:k+1,j)) >= cos_sector(k,j-1),...
                                   sum(sin_sector(k:k+1,j)) >= sin_sector(k,j-1)];
     end
   else
     rel_foci = foci;
-    Constraints = [Constraints, ...
-                   implies(~trim(j), -pi/8 <= yaw(j) - yaw(j-1) <= 0)];
+    yaw_range = [-pi/8, 0];
+%     Constraints = [Constraints, ...
+%                    implies(~trim(j), -pi/8 <= yaw(j) - yaw(j-1) <= 0)];
     for k = 2:size(cos_sector, 1)
       Constraints = [Constraints, sum(cos_sector(k-1:k,j)) >= cos_sector(k,j-1),...
                                   sum(sin_sector(k-1:k,j)) >= sin_sector(k,j-1)];
     end
   end
 
-  % Enforce relative step reachability
-  for k = 1:size(rel_foci, 2)
-    Constraints = [Constraints, ...
-      cone(x(1:2,j-1) + [cos_yaw(j-1), -sin_yaw(j-1); sin_yaw(j-1), cos_yaw(j-1)] * rel_foci(:,k) - x(1:2,j), ellipse_l + seed_plan.params.max_step_width * trim(j)),...
-%       cone(x(1:2,j-1) + [cos_yaw(j-1), -sin_yaw(j-1); sin_yaw(j-1), cos_yaw(j-1)] * rel_foci(:,k) - x(1:2,j), ellipse_l),...
-      abs(x(3,j) - x(3,j-1)) <= seed_plan.params.nom_upward_step];
+  if j < nsteps-1
+    % Enforce relative step reachability
+    if seed_plan.footsteps(j).frame_id == seed_plan.footsteps(end).frame_id
+      Constraints = [Constraints,...
+        implies(~skip(j), yaw_range(1) <= yaw(j+1) - yaw(j) <= yaw_range(2))];
+      for k = 1:size(rel_foci, 2)
+        Constraints = [Constraints, ...
+          cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,j+1), ellipse_l + seed_plan.params.max_step_width * skip(j)),...
+          abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
 
-  end
-
-end
-
-for j = num_precise_steps+1:nsteps
-  % Ensure that the foot doesn't yaw too much per step
-  if seed_plan.footsteps(j).frame_id == biped.foot_frame_id.left
-    Constraints = [Constraints, implies(~trim(j), 0 <= yaw(j) - yaw(j-1) <= pi/8)];
+      end
+    else
+      Constraints = [Constraints,...
+        implies(~(skip(j) | skip(j+1)), yaw_range(1) <= yaw(j+1) - yaw(j) <= yaw_range(2)),...
+        implies(~skip(j) & skip(j+1), yaw_range(1) <= yaw(end) - yaw(j) <= yaw_range(2))];
+      for k = 1:size(rel_foci, 2)
+        Constraints = [Constraints, ...
+          cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,j+1), ellipse_l + seed_plan.params.max_step_width * (skip(j) + skip(j+1))),...
+          cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,end), ellipse_l + 10 * (1 + skip(j) - skip(j+1))),...
+          abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
+      end
+    end
   else
-    Constraints = [Constraints, implies(~trim(j), -pi/8 <= yaw(j) - yaw(j-1) <= 0)];
+    Constraints = [Constraints,...
+      yaw_range(1) <= yaw(j+1) - yaw(j) <= yaw_range(2)];
+    for k = 1:size(rel_foci, 2)
+      Constraints = [Constraints, ...
+        cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,j+1), ellipse_l),...
+        abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
+    end
   end
-
-  % Enforce approximate step reachability
-  Constraints = [Constraints, ...
-                 cone(x(1:2,j) - x(1:2,j-1), seed_plan.params.nom_forward_step),...
-                 abs(x(3,j) - x(3,j-1)) <= seed_plan.params.nom_upward_step];
 end
+
 
 % Enforce membership in safe regions
 for j = 3:nsteps
@@ -146,18 +160,15 @@ for j = 3:nsteps
   end
 end
 
-% trim(j) fixes step j to the initial pose of that foot (so we can trim it out of the plan later)
-for j = 3:(nsteps)
-  if seed_plan.footsteps(j).frame_id == seed_plan.footsteps(1).frame_id
-    Constraints = [Constraints, implies(trim(j), x(:,j) == seed_steps([1,2,3,6],1))];
-  else
-    Constraints = [Constraints, implies(trim(j), x(:,j) == seed_steps([1,2,3,6], 2))];
-  end
+for j = 3:(nsteps-2)
+  Constraints = [Constraints, implies(skip(j), x(:,j) == x(:,end-1))];
 end
 
 w_goal = diag(weights.goal([1,1,3,6]));
 w_rel = diag(weights.relative([1,1,3,6]));
-w_trim = w_rel(1) * (seed_plan.params.nom_forward_step^2 + seed_plan.params.nom_step_width^2);
+w_skip = 0;
+% w_skip = w_rel(1) * (seed_plan.params.nom_forward_step^2);
+% + seed_plan.params.nom_step_width^2);
 %        + (seed_steps([1,2,3,6], 2) - seed_steps([1,2,3,6], 1))' * w_rel * (seed_steps([1,2,3,6], 2) - seed_steps([1,2,3,6], 1));
 
 if seed_plan.footsteps(end).frame_id == biped.foot_frame_id.right
@@ -173,7 +184,7 @@ for j = 2:nsteps
   if j == nsteps
     w_rel = diag(weights.relative_final([1,1,3,6]));
   end
-  Objective = Objective + (x(:,j) - x(:,j-1))' * w_rel * (x(:,j) - x(:,j-1)) + -1 * w_trim * trim(j);
+  Objective = Objective + (x(:,j) - x(:,j-1))' * w_rel * (x(:,j) - x(:,j-1)) + -1 * w_skip * skip(j);
 end
 
 solvesdp(Constraints, Objective, sdpsettings('solver', 'gurobi'));
@@ -182,7 +193,7 @@ x = double(x);
 yaw = double(yaw);
 cos_yaw = double(cos_yaw);
 sin_yaw = double(sin_yaw);
-trim = double(trim);
+skip = double(skip);
 region = double(region);
 steps = zeros(6,nsteps);
 steps([1,2,3,6],:) = x;
@@ -200,14 +211,21 @@ plan.region_order = region_order;
 
 for j = 1:nsteps
   plan.footsteps(j).pos = steps(:,j);
+%   if j > 1
+%     (x(:,j) - x(:,j-1))' * w_rel * (x(:,j) - x(:,j-1))
+%   end
 end
 
-% Remove unnecessary footsteps
-trim = round(trim);
-trim(find(trim, 2, 'last')) = 0;
-plan = plan.slice(~trim);
-sin_yaw = sin_yaw(~trim);
-cos_yaw = cos_yaw(~trim);
+steps = [plan.footsteps.pos]
+skip = round(skip);
+plan = plan.slice(~skip);
+if plan.footsteps(end-2).frame_id == plan.footsteps(end-1).frame_id
+  idx = [1:length(plan.footsteps)-2,length(plan.footsteps),length(plan.footsteps)-1];
+  plan = plan.slice(idx);
+  cos_yaw = cos_yaw(idx);
+  sin_yaw = sin_yaw(idx);
+end
 
 plan.sanity_check();
+steps_rel = plan.relative_step_offsets()
 

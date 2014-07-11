@@ -26,7 +26,7 @@ n_regions = 10;
 lb = [0;-.2;-0.05];
 ub = [2;2.2;0.05];
 stone_scale = 0.3;
-if 1
+if 0
   stones = [0;-0.15;0];
   [Ai, bi] = poly2lincon(stones(1) + stone_scale*[-1, -1, 1, 1],...
                          stones(2) + stone_scale*[-1, 1, 1, -1]);
@@ -48,10 +48,10 @@ end
 
 goal = [rand(2,1) * 2;0;0;0;rand(1,1)*pi - pi/2];
 R = rotmat(goal(6));
-goal_pos = struct('right', [goal(1:2) + R * [0;-0.15]; 0;0;0;goal(6)],...
-                  'left', [goal(1:2) + R * [0;0.15]; 0;0;0;goal(6)]);
-% goal_pos = struct('right', [2;2-0.15;0.1;0;0;0],...
-%                   'left',  [2;2+0.15;0.1;0;0;0]);
+% goal_pos = struct('right', [goal(1:2) + R * [0;-0.15]; 0;0;0;goal(6)],...
+%                   'left', [goal(1:2) + R * [0;0.15]; 0;0;0;goal(6)]);
+goal_pos = struct('right', [1;0-0.15;0.1;0;0;0],...
+                  'left',  [1;0+0.15;0.1;0;0;0]);
 
 params = r.default_footstep_params;
 params.max_num_steps = 12;
@@ -67,9 +67,7 @@ params.ignore_terrain = true;
 params.map_command = 0;
 params.leading_foot = 0;
 
-weights = struct('relative', [10;10;10;0;0;.5],...
-                 'relative_final', [100;100;100;0;0;100],...
-                 'goal', [100;100;0;0;0;1000]);
+weights = r.getFootstepOptimizationWeights();
 
 tic
 nsteps = params.max_num_steps + 2;
@@ -79,7 +77,7 @@ seed_plan.footsteps(2).pos = foot_orig.left;
 plan = footstepMISOCP(r, seed_plan, weights, goal_pos);
 toc
 
-steps_rel = plan.relative_step_offsets()
+% steps_rel = plan.relative_step_offsets()
 
 figure(1);
 clf
@@ -95,8 +93,15 @@ quiver(steps(1,l_ndx), steps(2,l_ndx), k*cos(steps(6,l_ndx)), k*sin(steps(6,l_nd
 plot(steps(1,r_ndx), steps(2,r_ndx), 'ko', 'MarkerFaceColor', [0.2,0.8,0.2], 'MarkerSize', 10)
 plot(steps(1,l_ndx), steps(2,l_ndx), 'ko', 'MarkerFaceColor', [1, 204/255,0], 'MarkerSize', 10)
 goal_pos.center = mean([goal_pos.right, goal_pos.left], 2);
-k = 0.15;
-quiver(goal_pos.center(1), goal_pos.center(2), k*cos(goal_pos.center(6)), k*sin(goal_pos.center(6)), 'Color', [0,0,0], arrow_props{:}, 'ShowArrowHead', 'off', 'Marker', 'o', 'MarkerSize', 30)
+
+% Draw the goal
+goal_pos.center = mean([goal_pos.right, goal_pos.left], 2);
+radius = 0.2;
+th = linspace(-pi, pi);
+plot(goal_pos.center(1) + radius * cos(th), goal_pos.center(2) + radius * sin(th), 'k-', 'LineWidth', 2);
+plot([goal_pos.center(1), goal_pos.center(1) + radius*cos(goal_pos.center(6))],...
+     [goal_pos.center(2), goal_pos.center(2) + radius*sin(goal_pos.center(6))], 'k-', 'LineWidth', 2);
+   
 plot(steps(1,:), steps(2,:), 'k:')
 for j = 1:length(stones)
   pts = [stones(1,j) + stone_scale*[-1, -1, 1, 1];
