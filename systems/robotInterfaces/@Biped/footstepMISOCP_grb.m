@@ -55,10 +55,13 @@ add_var('region', 'B', [length(seed_plan.safe_regions), nsteps], 0, 1);
 add_var('cos_sector', 'B', [length(cos_boundaries)-1, nsteps], 0, 1);
 add_var('sin_sector', 'B', [length(sin_boundaries)-1, nsteps], 0, 1);
 
+c = zeros(nv, 1);
+Q = sparse(nv, nv);
 A = zeros(0, nv);
 b = zeros(0, 1);
 Aeq = zeros(0, nv);
 beq = zeros(0, 1);
+quadcon = struct('Qc', {}, 'q', {}, 'rhs', {});
 
 % x(:,1) == seed_steps([1,2,3,6],1),...
 ai = zeros(4, nv);
@@ -206,7 +209,7 @@ for j = 2:nsteps-1
   else
     rel_foci = foci;
     yaw_range = [-pi/8, 0];
-    for k = 2:size(cos_sector, 1)
+    for k = 2:v.cos_sector.size(1)
       ai = zeros(2, nv);
       bi = zeros(2, 1);
       % sum(cos_sector(k-1:k,j)) >= cos_sector(k,j-1),...
@@ -232,13 +235,88 @@ for j = 2:nsteps-1
   A = [A; ai];
   b = [b; bi];
 
-%%%%%%% TODO: from here down
   for k = 1:size(rel_foci, 2)
-    Constraints = [Constraints, ...
-      cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,j+1), ellipse_l),...
-      abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
+    % Constraints = [Constraints, ...
+    %   cone(x(1:2,j) + [cos_yaw(j), -sin_yaw(j); sin_yaw(j), cos_yaw(j)] * rel_foci(:,k) - x(1:2,j+1), ellipse_l),...
+    Qc = sparse(nv, nv);
+    qc = zeros(nv, 1);
+    rhs = ellipse_l^2;
+    Qc(v.x.i(1:2,j+1),v.x.i(1:2,j+1)) = eye(2);
+    Qc(v.x.i(1:2,j),v.x.i(1:2,j+1)) = -2*eye(2);
+    Qc(v.x.i(1:2,j),v.x.i(1:2,j)) = eye(2);
+    Qc(v.x.i(1,j+1),v.cos_yaw.i(j)) = -2*rel_foci(1,k);
+    Qc(v.x.i(1,j+1),v.sin_yaw.i(j)) = 2*rel_foci(2,k);
+    Qc(v.x.i(2,j+1),v.sin_yaw.i(j)) = -2*rel_foci(1,k);
+    Qc(v.x.i(2,j+1),v.cos_yaw.i(j)) = -2*rel_foci(2,k);
+    Qc(v.x.i(1,j),v.cos_yaw.i(j)) = 2*rel_foci(1,k);
+    Qc(v.x.i(1,j),v.sin_yaw.i(j)) = -2*rel_foci(2,k);
+    Qc(v.x.i(2,j),v.sin_yaw.i(j)) = 2*rel_foci(1,k);
+    Qc(v.x.i(2,j),v.cos_yaw.i(j)) = 2*rel_foci(2,k);
+    Qc(v.cos_yaw.i(j),v.cos_yaw.i(j)) = rel_foci(1,k)^2 + rel_foci(2,k)^2;
+    Qc(v.sin_yaw.i(j),v.sin_yaw.i(j)) = rel_foci(1,k)^2 + rel_foci(2,k)^2;
+
+    % Verify that our Qc form correctly measures the distance from the focus to the next footstep
+    temp = zeros(nv, 1);
+    tx1 = rand(2,1);
+    tx2 = rand(2,1);
+    tc = rand();
+    ts = rand();
+    d1 = norm(tx2 - (tx1 + [tc, -ts; ts, tc] * rel_foci(:,k)));
+    temp(v.x.i(1:2,j)) = tx1;
+    temp(v.x.i(1:2,j+1)) = tx2;
+    temp(v.cos_yaw.i(j)) = tc;
+    temp(v.sin_yaw.i(j)) = ts;
+    d2 = sqrt(temp' * Qc * temp);
+    valuecheck(d1, d2, 1e-4);
+
+    quadcon(end+1) = struct('Qc', Qc, 'q', qc, 'rhs', rhs);
+
+      % abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
+    ai = zeros(2, nv);
+    bi = seed_plan.params.nom_upward_step * ones(2,1);
+    ai(1, v.x.i(3,j+1)) = 1;
+    ai(1, v.x.i(3,j)) = -1;
+    ai(2, v.x.i(3,j+1)) = -1;
+    ai(2, v.x.i(3,j)) = 1;
+    A = [A; ai];
+    b = [b; bi];
   end
 end
+
+% TODO: enforce safe region membership
+% Enforce membership in safe regions
+% for j = 3:nsteps
+%   for r = 1:length(seed_plan.safe_regions)
+%     Ar = [seed_plan.safe_regions(r).A(:,1:2), zeros(size(seed_plan.safe_regions(r).A, 1), 1), seed_plan.safe_regions(r).A(:,3)];
+%     Constraints = [Constraints, ...
+%        implies(region(r,j), Ar * x(:,j) <= seed_plan.safe_regions(r).b),...
+%        implies(region(r,j), seed_plan.safe_regions(r).normal' * x(1:3,j) == seed_plan.safe_regions(r).normal' * seed_plan.safe_regions(r).point)];
+%   end
+% end
+
+% Distance to goal objective
+w_goal = diag(weights.goal([1,2,3,6]));
+for j = nsteps-1:nsteps
+  if seed_plan.footsteps(j).frame_id == biped.foot_frame_id.right
+    xg = reshape(goal_pos.right([1,2,3,6]), [], 1);
+  else
+    xg = reshape(goal_pos.left([1,2,3,6]), [], 1);
+  end
+  Q(v.x.i(:,j), v.x.i(:,j)) = w_goal;
+  c(v.x.i(:,j)) = -2 * xg' * w_goal;
+end
+
+% Step displacement objective
+w_rel = diag(weights.relative([1,1,3,6]))
+for j = 3:nsteps
+  if j == nsteps
+    w_rel = diag(weights.relative_final([1,1,3,6]));
+  end
+  Q(v.x.i(:,j), v.x.i(:,j)) = Q(v.x.i(:,j), v.x.i(:,j)) + w_rel;
+  Q(v.x.i(:,j-1), v.x.i(:,j)) = Q(v.x.i(:,j-1), v.x.i(:,j)) - 2 * w_rel;
+  Q(v.x.i(:,j-1), v.x.i(:,j-1)) = Q(v.x.i(:,j-1), v.x.i(:,j-1)) + w_rel;
+end
+
 
 
 var_names = fieldnames(v);
@@ -247,7 +325,9 @@ model.A = sparse([A; Aeq]);
 model.rhs = [b; beq];
 model.sense = [repmat('<', size(A,1), 1); repmat('=', size(Aeq, 1), 1)];
 model.start = nan(nv, 1);
-model.obj = zeros(nv, 1);
+model.obj = c;
+model.Q = Q;
+model.quadcon = quadcon;
 
 % Set up defaults so we can fill them in from v
 model.vtype = repmat('C', nv, 1);
@@ -264,7 +344,11 @@ end
 
 params.mipgap = 1e-3;
 params.outputflag = 1;
+
+% Solve the problem
 result = gurobi(model, params);
+
+% Extract the solution
 for j = 1:length(var_names)
   name = var_names{j};
   i = reshape(v.(name).i, [], 1);
@@ -277,6 +361,7 @@ for j = 1:length(var_names)
   end
 end
 
+% Sanity check the solution
 for j = 1:nsteps
   for s = 1:length(cos_boundaries) - 1
     th0 = cos_boundaries(s);
@@ -286,8 +371,8 @@ for j = 1:nsteps
     cos_slope = -sin(th);
     cos_intercept = cos(th) - (cos_slope * th);
     if v.cos_sector.value(s,j)
-      assert(v.x.value(4,j) >= th0);
-      assert(v.x.value(4,j) <= th1);
+      assert(v.x.value(4,j) >= th0-1e-3);
+      assert(v.x.value(4,j) <= th1+1e-3);
       assert(abs(v.cos_yaw.value(j) - (cos_slope * v.x.value(4,j) + cos_intercept)) < 1e-3);
     end
   end
@@ -301,8 +386,8 @@ for j = 1:nsteps
     sin_slope = cos(th);
     sin_intercept = sin(th) - (sin_slope * th);
     if v.sin_sector.value(s,j)
-      assert(v.x.value(4,j) >= th0);
-      assert(v.x.value(4,j) <= th1);
+      assert(v.x.value(4,j) >= th0-1e-3);
+      assert(v.x.value(4,j) <= th1+1e-3);
       assert(abs(v.sin_yaw.value(j) - (sin_slope * v.x.value(4,j) + sin_intercept)) < 1e-3);
     end
   end
