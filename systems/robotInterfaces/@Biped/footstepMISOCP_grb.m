@@ -39,12 +39,13 @@ function add_var(name, type_, size_, lb, ub, start_)
   v.(name).lb = lb;
   v.(name).ub = ub;
   if nargin < 6
-    start_ = nan;
+    start_ = [];
   end
-  if isscalar(start_)
-    start_ = repmat(start_, v.(name).size);
-  end
-  v.(name).start = start_;
+  % if isscalar(start_)
+  %   start_ = repmat(start_, v.(name).size);
+  % end
+  v.(name).start = nan(v.(name).size);
+  v.(name).start(1:size(start_, 1), 1:size(start_, 2)) = start_;
 end
 
 x_lb = [-100 + repmat(seed_steps(1:3,1), 1, nsteps); 
@@ -204,6 +205,8 @@ assert(offset == size(As, 1));
 A = [A; As];
 b = [b; bs];
 
+disp('before reach')
+size(A, 1)
 offset = 0;
 As = zeros((2 + 2*(v.cos_sector.size(1)-1) + 2*size(foci,2)) * (nsteps-2), nv);
 bs = zeros(size(As, 1), 1);
@@ -215,24 +218,24 @@ for j = 2:nsteps-1
     rel_foci = [foci(1,:); -foci(2,:)];
     yaw_range = [0, pi/8];
     for k = 1:v.cos_sector.size(1) - 1
-      % sum(cos_sector(k:k+1,j)) >= cos_sector(k,j-1)
-      As(offset+1, v.cos_sector.i(k,j-1)) = 1;
-      As(offset+1, v.cos_sector.i(k:k+1,j)) = -1;
-      % sum(sin_sector(k:k+1,j)) >= sin_sector(k,j-1)];
-      As(offset+2, v.sin_sector.i(k,j-1)) = 1;
-      As(offset+2, v.sin_sector.i(k:k+1,j)) = -1;
+      % sum(cos_sector(k:k+1,j+1)) >= cos_sector(k,j)
+      As(offset+1, v.cos_sector.i(k,j)) = 1;
+      As(offset+1, v.cos_sector.i(k:k+1,j+1)) = -1;
+      % sum(sin_sector(k:k+1,j+1)) >= sin_sector(k,j)];
+      As(offset+2, v.sin_sector.i(k,j)) = 1;
+      As(offset+2, v.sin_sector.i(k:k+1,j+1)) = -1;
       offset = offset + 2;
     end
   else
     rel_foci = foci;
     yaw_range = [-pi/8, 0];
     for k = 2:v.cos_sector.size(1)
-      % sum(cos_sector(k-1:k,j)) >= cos_sector(k,j-1),...
-      As(offset+1, v.cos_sector.i(k,j-1)) = 1;
-      As(offset+1, v.cos_sector.i(k-1:k,j)) = -1;
-      % sum(sin_sector(k-1:k,j)) >= sin_sector(k,j-1)];
-      As(offset+2, v.sin_sector.i(k,j-1)) = 1;
-      As(offset+2, v.sin_sector.i(k-1:k,j)) = -1;
+      % sum(cos_sector(k-1:k,j+1)) >= cos_sector(k,j),...
+      As(offset+1, v.cos_sector.i(k,j)) = 1;
+      As(offset+1, v.cos_sector.i(k-1:k,j+1)) = -1;
+      % sum(sin_sector(k-1:k,j+1)) >= sin_sector(k,j)];
+      As(offset+2, v.sin_sector.i(k,j)) = 1;
+      As(offset+2, v.sin_sector.i(k-1:k,j+1)) = -1;
       offset = offset + 2;
     end
   end
@@ -295,6 +298,8 @@ end
 assert(offset == expected_offset);
 A = [A; As];
 b = [b; bs];
+disp('after reach')
+size(A, 1)
 
 % Enforce membership in safe regions
 M = 100;
@@ -344,7 +349,7 @@ for j = nsteps-1:nsteps
 end
 
 % Step displacement objective
-w_rel = diag(weights.relative([1,1,3,6]))
+w_rel = diag(weights.relative([1,1,3,6]));
 for j = 3:nsteps
   if j == nsteps
     w_rel = diag(weights.relative_final([1,1,3,6]));
@@ -379,7 +384,7 @@ for j = 1:length(var_names)
   model.start(i) = reshape(v.(name).start, [], 1);
 end
 
-params.mipgap = 1e-3;
+params.mipgap = 1e-1;
 params.outputflag = 1;
 
 % Solve the problem

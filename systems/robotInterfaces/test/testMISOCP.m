@@ -70,16 +70,24 @@ params.leading_foot = 0;
 weights = r.getFootstepOptimizationWeights();
 
 tic
-profile on
 nsteps = params.max_num_steps + 2;
 seed_plan = FootstepPlan.blank_plan(r, nsteps, [r.foot_frame_id.right, r.foot_frame_id.left], params, safe_regions);
 seed_plan.footsteps(1).pos = foot_orig.right;
 seed_plan.footsteps(2).pos = foot_orig.left;
 [plan, v] = footstepMISOCP_grb(r, seed_plan, weights, goal_pos);
-profile viewer
 toc
 tic
-[plan, v] = footstepMISOCP_grb(r, seed_plan, weights, goal_pos, v);
+[plan, v] = footstepMISOCP_grb(r, plan, weights, goal_pos, v);
+toc
+
+plan = plan.extend(length(plan.footsteps)+1);
+v.cos_yaw.value(end+1) = v.cos_yaw.value(end-1);
+v.sin_yaw.value(end+1) = v.sin_yaw.value(end-1);
+v.cos_sector.value(:,end+1) = v.cos_sector.value(:,end-1);
+v.sin_sector.value(:,end+1) = v.sin_sector.value(:,end-1);
+v.region.value(:,end+1) = v.region.value(:,end-1);
+tic
+[plan, v] = footstepMISOCP_grb(r, plan, weights, goal_pos, v);
 toc
 
 % steps_rel = plan.relative_step_offsets()

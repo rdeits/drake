@@ -65,6 +65,7 @@ min_steps_to_cover_distance = ceil(max([norm(goal_pos.right(1:2) - start_pos.rig
                                    norm(goal_pos.right(1:2) - start_pos.right(1:2)) / options.step_params.max_forward_step + 1,...
                                    abs(goal_pos.right(6) - start_pos.right(6)) / mean([options.step_params.max_outward_angle, options.step_params.max_inward_angle]) + 1,...
                                    abs(goal_pos.right(3) - start_pos.right(3)) / mean([options.step_params.nom_upward_step, options.step_params.nom_downward_step]) + 1]));
+min_steps_to_cover_distance = 2;
 nsteps = min(max(min_steps_to_cover_distance, options.step_params.min_num_steps), options.step_params.max_num_steps);
 
 % Currently we always lead with the right foot, but this should change soon
@@ -75,8 +76,9 @@ plan.footsteps(2).pos = start_pos.left;
 step_excess = [];
 goal_dist = [];
 weights = getFootstepOptimizationWeights(obj);
+v = [];
 while true
-  plan = options.method_handle(obj, plan, weights, goal_pos);
+  [plan, v] = options.method_handle(obj, plan, weights, goal_pos, v);
   if plan.footsteps(end).frame_id == obj.foot_frame_id.right
     final_error = abs(goal_pos.right - plan.footsteps(end).pos) + abs(goal_pos.left - plan.footsteps(end-1).pos);
   else
@@ -87,8 +89,8 @@ while true
   lc.publish('FOOTSTEP_PLAN_RESPONSE', plan.toLCM());
   nsteps
   steps_rel = plan.relative_step_offsets()
-  goal_dist(end+1) = sum(max(final_error - [0.02; 0.02; 0.02; inf; inf; pi/64],0));
-  step_excess(end+1) = sum(steps_rel(1,steps_rel(1,:) > options.step_params.nom_forward_step));
+  goal_dist(end+1) = sum(max(final_error - [0.02; 0.02; 0.02; inf; inf; pi/64],0))
+  step_excess(end+1) = sum(steps_rel(1,steps_rel(1,:) > options.step_params.nom_forward_step))
   if (goal_dist(end) <= 0 && step_excess(end) <= 0) ...
       || nsteps == options.step_params.max_num_steps
     break
@@ -98,6 +100,11 @@ while true
   else
     nsteps = nsteps + 1;
     plan = plan.extend(nsteps+2);
+    v.cos_yaw.value(end+1) = v.cos_yaw.value(end-1);
+    v.sin_yaw.value(end+1) = v.sin_yaw.value(end-1);
+    v.cos_sector.value(:,end+1) = v.cos_sector.value(:,end-1);
+    v.sin_sector.value(:,end+1) = v.sin_sector.value(:,end-1);
+    v.region.value(:,end+1) = v.region.value(:,end-1);
   end
 end
 
