@@ -26,7 +26,7 @@ n_regions = 10;
 lb = [0;-.2;-0.05];
 ub = [2;2.2;0.05];
 stone_scale = 0.3;
-if 0
+if 1
   stones = [0;-0.15;0];
   [Ai, bi] = poly2lincon(stones(1) + stone_scale*[-1, -1, 1, 1],...
                          stones(2) + stone_scale*[-1, 1, 1, -1]);
@@ -48,10 +48,10 @@ end
 
 goal = [rand(2,1) * 2;0;0;0;rand(1,1)*pi - pi/2];
 R = rotmat(goal(6));
-% goal_pos = struct('right', [goal(1:2) + R * [0;-0.15]; 0;0;0;goal(6)],...
-%                   'left', [goal(1:2) + R * [0;0.15]; 0;0;0;goal(6)]);
-goal_pos = struct('right', [3;0-0.15;0.1;0;0;0],...
-                  'left',  [3;0+0.15;0.1;0;0;0]);
+goal_pos = struct('right', [goal(1:2) + R * [0;-0.15]; 0;0;0;goal(6)],...
+                  'left', [goal(1:2) + R * [0;0.15]; 0;0;0;goal(6)]);
+% goal_pos = struct('right', [3;0-0.15;0.1;0;0;0],...
+%                   'left',  [3;0+0.15;0.1;0;0;0]);
 
 params = r.default_footstep_params;
 params.max_num_steps = 12;
@@ -70,13 +70,16 @@ params.leading_foot = 0;
 weights = r.getFootstepOptimizationWeights();
 
 tic
-% profile on
+profile on
 nsteps = params.max_num_steps + 2;
 seed_plan = FootstepPlan.blank_plan(r, nsteps, [r.foot_frame_id.right, r.foot_frame_id.left], params, safe_regions);
 seed_plan.footsteps(1).pos = foot_orig.right;
 seed_plan.footsteps(2).pos = foot_orig.left;
-plan = footstepMISOCP_grb(r, seed_plan, weights, goal_pos);
-% profile viewer
+[plan, v] = footstepMISOCP_grb(r, seed_plan, weights, goal_pos);
+profile viewer
+toc
+tic
+[plan, v] = footstepMISOCP_grb(r, seed_plan, weights, goal_pos, v);
 toc
 
 % steps_rel = plan.relative_step_offsets()

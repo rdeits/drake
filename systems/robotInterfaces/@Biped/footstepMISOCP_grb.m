@@ -1,6 +1,9 @@
-function [plan, sin_yaw, cos_yaw] = footstepMISOCP_grb(biped, seed_plan, weights, goal_pos)
+function [plan, v] = footstepMISOCP_grb(biped, seed_plan, weights, goal_pos, v_seed)
 
 checkDependency('gurobi');
+if nargin < 5
+  v_seed = [];
+end
 seed_plan.sanity_check();
 rangecheck(seed_plan.footsteps(1).pos(6), -pi, pi);
 rangecheck(seed_plan.footsteps(2).pos(6), -pi, pi);
@@ -48,12 +51,21 @@ x_lb = [-100 + repmat(seed_steps(1:3,1), 1, nsteps);
           repmat(min_yaw, 1, nsteps)];
 x_ub = [100 + repmat(seed_steps(1:3,1), 1, nsteps);
           repmat(max_yaw, 1, nsteps)];
-add_var('x', 'C', [4, nsteps], x_lb, x_ub);
-add_var('cos_yaw', 'C', [1, nsteps], -1, 1);
-add_var('sin_yaw', 'C', [1, nsteps], -1, 1);
-add_var('region', 'B', [length(seed_plan.safe_regions), nsteps], 0, 1);
-add_var('cos_sector', 'B', [length(cos_boundaries)-1, nsteps], 0, 1);
-add_var('sin_sector', 'B', [length(sin_boundaries)-1, nsteps], 0, 1);
+x_start = seed_steps([1,2,3,6],:);
+add_var('x', 'C', [4, nsteps], x_lb, x_ub, x_start);
+if isempty(v_seed)
+  add_var('cos_yaw', 'C', [1, nsteps], -1, 1);
+  add_var('sin_yaw', 'C', [1, nsteps], -1, 1);
+  add_var('region', 'B', [length(seed_plan.safe_regions), nsteps], 0, 1);
+  add_var('cos_sector', 'B', [length(cos_boundaries)-1, nsteps], 0, 1);
+  add_var('sin_sector', 'B', [length(sin_boundaries)-1, nsteps], 0, 1);
+else
+  add_var('cos_yaw', 'C', [1, nsteps], -1, 1, v_seed.cos_yaw.value);
+  add_var('sin_yaw', 'C', [1, nsteps], -1, 1, v_seed.sin_yaw.value);
+  add_var('region', 'B', [length(seed_plan.safe_regions), nsteps], 0, 1, v_seed.region.value);
+  add_var('cos_sector', 'B', [length(cos_boundaries)-1, nsteps], 0, 1, v_seed.cos_sector.value);
+  add_var('sin_sector', 'B', [length(sin_boundaries)-1, nsteps], 0, 1, v_seed.sin_sector.value);
+end
 
 c = zeros(nv, 1);
 Q = sparse(nv, nv);
@@ -99,6 +111,10 @@ for j = 1:nsteps
   Aeq = [Aeq; ai]; beq = [beq; bi];
 end
 
+offset = 0;
+As = zeros(4*(length(cos_boundaries)-1)*nsteps, nv);
+bs = zeros(size(As, 1), 1);
+expected_offset = size(As, 1);
 % Enforce approximation of cosine
 for j = 1:nsteps
   for s = 1:length(cos_boundaries) - 1
@@ -109,85 +125,89 @@ for j = 1:nsteps
     cos_intercept = cos(th) - (cos_slope * th);
 
     % implies(cos_sector(s, j), th0 <= yaw(j) <= th1),...
-    ai = zeros(2, nv);
-    bi = zeros(2,1);
     M = 4 * pi;
-    ai(:, v.cos_sector.i(s,j)) = M;
-    ai(1, v.x.i(4,j)) = -1;
-    bi(1) = -th0 + M;
-    ai(2, v.x.i(4,j)) = 1;
-    bi(2) = th1 + M;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+1:offset+2, v.cos_sector.i(s,j)) = M;
+    As(offset+1, v.x.i(4,j)) = -1;
+    bs(offset+1) = -th0 + M;
+    As(offset+2, v.x.i(4,j)) = 1;
+    bs(offset+2) = th1 + M;
+    offset = offset + 2;
 
     % implies(cos_sector(s, j), cos_yaw(j) == cos_slope * yaw(j) + cos_intercept)];
-    ai = zeros(2, nv);
-    bi = zeros(2, 1);
-    ai(:, v.cos_sector.i(s,j)) = M;
-    ai(1, v.cos_yaw.i(j)) = 1;
-    ai(1, v.x.i(4,j)) = -cos_slope;
-    bi(1) = cos_intercept + M;
-    ai(2, v.cos_yaw.i(j)) = -1;
-    ai(2, v.x.i(4,j)) = cos_slope;
-    bi(2) = -cos_intercept + M;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+1:offset+2, v.cos_sector.i(s,j)) = M;
+    As(offset+1, v.cos_yaw.i(j)) = 1;
+    As(offset+1, v.x.i(4,j)) = -cos_slope;
+    bs(offset+1) = cos_intercept + M;
+    As(offset+2, v.cos_yaw.i(j)) = -1;
+    As(offset+2, v.x.i(4,j)) = cos_slope;
+    bs(offset+2) = -cos_intercept + M;
+    offset = offset + 2;
   end
 end
+assert(offset == expected_offset);
+A = [A; As];
+b = [b; bs];
 
+offset = 0;
+As = zeros(4*(length(sin_boundaries)-1)*nsteps, nv);
+bs = zeros(size(As, 1), 1);
+expected_offset = size(As, 1);
 % Enforce approximation of sine
 for j = 1:nsteps
   for s = 1:length(sin_boundaries) - 1
     th0 = sin_boundaries(s);
     th1 = sin_boundaries(s+1);
-
     th = (th0 + th1)/2;
     sin_slope = cos(th);
     sin_intercept = sin(th) - (sin_slope * th);
 
     % implies(sin_sector(s, j), th0 <= yaw(j) <= th1),...
-    ai = zeros(2, nv);
-    bi = zeros(2,1);
     M = 4 * pi;
-    ai(:, v.sin_sector.i(s,j)) = M;
-    ai(1, v.x.i(4,j)) = -1;
-    bi(1) = -th0 + M;
-    ai(2, v.x.i(4,j)) = 1;
-    bi(2) = th1 + M;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+1:offset+2, v.sin_sector.i(s,j)) = M;
+    As(offset+1, v.x.i(4,j)) = -1;
+    bs(offset+1) = -th0 + M;
+    As(offset+2, v.x.i(4,j)) = 1;
+    bs(offset+2) = th1 + M;
+    offset = offset + 2;
 
     % implies(sin_sector(s, j), sin_yaw(j) == sin_slope * yaw(j) + sin_intercept)];
-    ai = zeros(2, nv);
-    bi = zeros(2, 1);
-    ai(:, v.sin_sector.i(s,j)) = M;
-    ai(1, v.sin_yaw.i(j)) = 1;
-    ai(1, v.x.i(4,j)) = -sin_slope;
-    bi(1) = sin_intercept + M;
-    ai(2, v.sin_yaw.i(j)) = -1;
-    ai(2, v.x.i(4,j)) = sin_slope;
-    bi(2) = -sin_intercept + M;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+1:offset+2, v.sin_sector.i(s,j)) = M;
+    As(offset+1, v.sin_yaw.i(j)) = 1;
+    As(offset+1, v.x.i(4,j)) = -sin_slope;
+    bs(offset+1) = sin_intercept + M;
+    As(offset+2, v.sin_yaw.i(j)) = -1;
+    As(offset+2, v.x.i(4,j)) = sin_slope;
+    bs(offset+2) = -sin_intercept + M;
+    offset = offset + 2;
   end
 end
+assert(offset == expected_offset);
+A = [A; As];
+b = [b; bs];
 
+offset = 0;
+As = zeros(2 * v.sin_sector.size(1) * nsteps, nv);
+bs = zeros(size(As, 1), 1);
 % Enforce range between sin/cos sectors
 for j = 1:nsteps
   for k = 1:v.sin_sector.size(1)
-    ai = zeros(2, nv);
-    bi = zeros(2, 1);
     % sum(sin_sector(max(1,k-1):min(k+1,size(sin_sector,1)),j)) >= cos_sector(k,j),...
-    ai(1, v.sin_sector.i(max(1,k-1):min(k+1,v.sin_sector.size(1)),j)) = -1;
-    ai(1, v.cos_sector.i(k,j)) = 1;
+    As(offset+1, v.sin_sector.i(max(1,k-1):min(k+1,v.sin_sector.size(1)),j)) = -1;
+    As(offset+1, v.cos_sector.i(k,j)) = 1;
     % sum(cos_sector(max(1,k-1):min(k+1,size(cos_sector,1)),j)) >= sin_sector(k,j)];
-    ai(2, v.cos_sector.i(max(1,k-1):min(k+1,v.cos_sector.size(1)),j)) = -1;
-    ai(2, v.sin_sector.i(k,j)) = 1;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+2, v.cos_sector.i(max(1,k-1):min(k+1,v.cos_sector.size(1)),j)) = -1;
+    As(offset+2, v.sin_sector.i(k,j)) = 1;
+    offset = offset + 2;
   end
 end
+assert(offset == size(As, 1));
+A = [A; As];
+b = [b; bs];
 
+offset = 0;
+As = zeros((2 + 2*(v.cos_sector.size(1)-1) + 2*size(foci,2)) * (nsteps-2), nv);
+bs = zeros(size(As, 1), 1);
+expected_offset = size(As, 1);
 % Reachability between steps
 for j = 2:nsteps-1
   % Ensure that the foot doesn't yaw too much per step
@@ -195,45 +215,36 @@ for j = 2:nsteps-1
     rel_foci = [foci(1,:); -foci(2,:)];
     yaw_range = [0, pi/8];
     for k = 1:v.cos_sector.size(1) - 1
-      ai = zeros(2, nv);
-      bi = zeros(2, 1);
       % sum(cos_sector(k:k+1,j)) >= cos_sector(k,j-1)
-      ai(1, v.cos_sector.i(k,j-1)) = 1;
-      ai(1, v.cos_sector.i(k:k+1,j)) = -1;
+      As(offset+1, v.cos_sector.i(k,j-1)) = 1;
+      As(offset+1, v.cos_sector.i(k:k+1,j)) = -1;
       % sum(sin_sector(k:k+1,j)) >= sin_sector(k,j-1)];
-      ai(2, v.sin_sector.i(k,j-1)) = 1;
-      ai(2, v.sin_sector.i(k:k+1,j)) = -1;
-      A = [A; ai];
-      b = [b; bi];
+      As(offset+2, v.sin_sector.i(k,j-1)) = 1;
+      As(offset+2, v.sin_sector.i(k:k+1,j)) = -1;
+      offset = offset + 2;
     end
   else
     rel_foci = foci;
     yaw_range = [-pi/8, 0];
     for k = 2:v.cos_sector.size(1)
-      ai = zeros(2, nv);
-      bi = zeros(2, 1);
       % sum(cos_sector(k-1:k,j)) >= cos_sector(k,j-1),...
-      ai(1, v.cos_sector.i(k,j-1)) = 1;
-      ai(1, v.cos_sector.i(k-1:k,j)) = -1;
+      As(offset+1, v.cos_sector.i(k,j-1)) = 1;
+      As(offset+1, v.cos_sector.i(k-1:k,j)) = -1;
       % sum(sin_sector(k-1:k,j)) >= sin_sector(k,j-1)];
-      ai(2, v.sin_sector.i(k,j-1)) = 1;
-      ai(2, v.sin_sector.i(k-1:k,j)) = -1;
-      A = [A; ai];
-      b = [b; bi];
+      As(offset+2, v.sin_sector.i(k,j-1)) = 1;
+      As(offset+2, v.sin_sector.i(k-1:k,j)) = -1;
+      offset = offset + 2;
     end
   end
 
   % yaw_range(1) <= yaw(j+1) - yaw(j) <= yaw_range(2)];
-  ai = zeros(2, nv);
-  bi = zeros(2, 1);
-  ai(1, v.x.i(4,j)) = 1;
-  ai(1, v.x.i(4,j+1)) = -1;
-  bi(1) = -yaw_range(1);
-  ai(2, v.x.i(4,j)) = -1;
-  ai(2, v.x.i(4,j+1)) = 1;
-  bi(2) = yaw_range(2);
-  A = [A; ai];
-  b = [b; bi];
+  As(offset+1, v.x.i(4,j)) = 1;
+  As(offset+1, v.x.i(4,j+1)) = -1;
+  bs(offset+1) = -yaw_range(1);
+  As(offset+2, v.x.i(4,j)) = -1;
+  As(offset+2, v.x.i(4,j+1)) = 1;
+  bs(offset+2) = yaw_range(2);
+  offset = offset + 2;
 
   for k = 1:size(rel_foci, 2)
     % Constraints = [Constraints, ...
@@ -272,27 +283,52 @@ for j = 2:nsteps-1
     quadcon(end+1) = struct('Qc', Qc, 'q', qc, 'rhs', rhs);
 
       % abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
-    ai = zeros(2, nv);
-    bi = seed_plan.params.nom_upward_step * ones(2,1);
-    ai(1, v.x.i(3,j+1)) = 1;
-    ai(1, v.x.i(3,j)) = -1;
-    ai(2, v.x.i(3,j+1)) = -1;
-    ai(2, v.x.i(3,j)) = 1;
-    A = [A; ai];
-    b = [b; bi];
+    As(offset+1, v.x.i(3,j+1)) = 1;
+    As(offset+1, v.x.i(3,j)) = -1;
+    As(offset+2, v.x.i(3,j+1)) = -1;
+    As(offset+2, v.x.i(3,j)) = 1;
+    bs(offset+1:2) = seed_plan.params.nom_upward_step;
+    offset = offset + 2;
   end
 end
+assert(offset == expected_offset);
+A = [A; As];
+b = [b; bs];
 
-% TODO: enforce safe region membership
 % Enforce membership in safe regions
-% for j = 3:nsteps
-%   for r = 1:length(seed_plan.safe_regions)
-%     Ar = [seed_plan.safe_regions(r).A(:,1:2), zeros(size(seed_plan.safe_regions(r).A, 1), 1), seed_plan.safe_regions(r).A(:,3)];
-%     Constraints = [Constraints, ...
-%        implies(region(r,j), Ar * x(:,j) <= seed_plan.safe_regions(r).b),...
-%        implies(region(r,j), seed_plan.safe_regions(r).normal' * x(1:3,j) == seed_plan.safe_regions(r).normal' * seed_plan.safe_regions(r).point)];
-%   end
-% end
+M = 100;
+Ar = zeros((nsteps-2) * sum(cellfun(@(x) size(x, 1) + 2, {seed_plan.safe_regions.A})), nv);
+br = zeros(size(Ar, 1), 1);
+offset = 0;
+expected_offset = size(Ar, 1);
+for j = 3:nsteps
+  for r = 1:length(seed_plan.safe_regions)
+    %     Ar = [seed_plan.safe_regions(r).A(:,1:2), zeros(size(seed_plan.safe_regions(r).A, 1), 1), seed_plan.safe_regions(r).A(:,3)];
+    %     Constraints = [Constraints, ...
+    %        implies(region(r,j), Ar * x(:,j) <= seed_plan.safe_regions(r).b),...
+    %        implies(region(r,j), seed_plan.safe_regions(r).normal' * x(1:3,j) == seed_plan.safe_regions(r).normal' * seed_plan.safe_regions(r).point)];
+    A_region = seed_plan.safe_regions(r).A;
+    A_region = [A_region(:,1:2), zeros(size(A_region, 1), 1), A_region(:,3)];
+    A_region = [A_region;
+                reshape(seed_plan.safe_regions(r).normal, 1, []), 0;
+                -reshape(seed_plan.safe_regions(r).normal, 1, []), 0];
+    b_region = [seed_plan.safe_regions(r).b;
+                seed_plan.safe_regions(r).normal' * seed_plan.safe_regions(r).point;
+                -seed_plan.safe_regions(r).normal' * seed_plan.safe_regions(r).point];
+
+    Ai = zeros(size(A_region, 1), nv);
+    Ai(:,v.x.i(:,j)) = A_region;
+    Ai(:,v.region.i(r,j)) = M;
+    bi = b_region + M;
+    Ar(offset + (1:size(Ai, 1)), :) = Ai;
+    br(offset + (1:size(Ai, 1)), :) = bi;
+    offset = offset + size(Ai, 1);
+  end
+end
+assert(offset == expected_offset);
+A = [A; Ar];
+b = [b; br];
+
 
 % Distance to goal objective
 w_goal = diag(weights.goal([1,2,3,6]));
