@@ -285,9 +285,10 @@ for j = 2:nsteps-1
       % abs(x(3,j+1) - x(3,j)) <= seed_plan.params.nom_upward_step];
     As(offset+1, v.x.i(3,j+1)) = 1;
     As(offset+1, v.x.i(3,j)) = -1;
+    bs(offset+1) = seed_plan.params.nom_upward_step;
     As(offset+2, v.x.i(3,j+1)) = -1;
     As(offset+2, v.x.i(3,j)) = 1;
-    bs(offset+1:2) = seed_plan.params.nom_upward_step;
+    bs(offset+2) = seed_plan.params.nom_downward_step;
     offset = offset + 2;
   end
 end
