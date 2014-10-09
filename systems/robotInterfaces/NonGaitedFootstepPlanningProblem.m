@@ -101,6 +101,8 @@ classdef NonGaitedFootstepPlanningProblem
       MAX_VELOCITY = MAX_DISTANCE / obj.dt;
       MAX_ACCELERATION = 10 * obj.g;
 
+      degree = 2;
+
       % Which indices of [x, y, z, roll, pitch, yaw] do we actually use
       POSE_INDICES = [1,2,3,6];
 
@@ -382,7 +384,7 @@ classdef NonGaitedFootstepPlanningProblem
 
       % Penalize angular momentum
       if obj.use_angular_momentum
-        objective = objective + 10 * sum(sum(angular_momentum.body.^2,1));
+        objective = objective + 100 * sum(sum(abs(angular_momentum.body),1));
       end
 
       % Keep the legs near the body if possible
