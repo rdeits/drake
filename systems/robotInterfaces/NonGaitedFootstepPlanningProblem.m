@@ -28,8 +28,7 @@ classdef NonGaitedFootstepPlanningProblem
     safe_regions = ContactRegion();
     dt = 0.25;
     g = 9.81; % accel due to gravity (m/s^2)
-    foot_force = 30; % N
-    body_mass = 5; % kg
+    foot_force = 0.6; % body weights
     nominal_com_height = 0.2; % m
 
     % Leave empty to solve for the gait, or set as a struct with one field for each foot name.
@@ -118,10 +117,11 @@ classdef NonGaitedFootstepPlanningProblem
 
       region = struct();
       gait = struct();
+      nominal_pose = struct();
 
       if obj.use_angular_momentum
         angular_momentum = struct();
-        angular_momentum.body = sdpvar(2, obj.nframes, 'full');
+        angular_momentum.body = sdpvar(3, obj.nframes, 'full');
       end
 
       contact_force = struct('total', 0);
@@ -138,9 +138,7 @@ classdef NonGaitedFootstepPlanningProblem
         contact_weighting.(foot) = sdpvar(6, obj.nframes, 'full');
         contact_force.(foot) = sdpvar(3, obj.nframes, 'full');
         contact_force.total = contact_force.total + contact_force.(foot);
-        foot_nominal_pose = [mean([obj.foci.(foot).v], 2); 0];
-        angular_momentum.(foot) = cross(foot_nominal_pose, [0;0;1]);
-        angular_momentum.(foot) = angular_momentum.(foot)(1:2);
+        nominal_pose.(foot) = [mean([obj.foci.(foot).v], 2); -0.2];  % TODO: this is hard-coded for LittleDog
         if isempty(obj.safe_region_assignments)
           region.(foot) = binvar(nregions, obj.nframes, 'full');
         else
@@ -269,7 +267,7 @@ classdef NonGaitedFootstepPlanningProblem
           constraints = [constraints, ...
                          pose.body(1:3,j+1) == pose.body(1:3,j) + velocity.body(1:3,j) * obj.dt + acceleration.body(1:3,j) * 0.5 * obj.dt^2,...
                          velocity.body(1:3,j+1) == velocity.body(1:3,j) + acceleration.body(1:3,j) * obj.dt,...
-                         acceleration.body(1:3,j) == contact_force.total(1:3,j)/obj.body_mass + [0;0;-obj.g],...
+                         acceleration.body(1:3,j) == contact_force.total(1:3,j)*obj.g + [0;0;-obj.g],...
                          ];
 
           if obj.use_angular_momentum
@@ -277,7 +275,7 @@ classdef NonGaitedFootstepPlanningProblem
 
             for f = obj.feet
               foot = f{1};
-              new_momentum = new_momentum + angular_momentum.(foot) * contact_force.(foot)(3,j);
+              new_momentum = new_momentum + cross(nominal_pose.(foot), contact_force.(foot)(:,j));
             end
             constraints = [constraints, ...
               angular_momentum.body(:,j+1) == new_momentum,...
@@ -374,11 +372,11 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       % Penalize contact force
-      objective = objective + 0.05 * (sum(sum(contact_force.total.^2,1)) - (obj.g * obj.body_mass)^2 * (obj.nframes-1));
+      objective = objective + 0.05 * (sum(sum(contact_force.total.^2,1)) - 1 * (obj.nframes-1));
 
       % Penalize angular momentum
       if obj.use_angular_momentum
-        objective = objective + 0.01 * sum(sum(angular_momentum.body.^2,1));
+        objective = objective + 0.1 * sum(sum(angular_momentum.body.^2,1));
       end
 
       % Keep the legs near the body if possible

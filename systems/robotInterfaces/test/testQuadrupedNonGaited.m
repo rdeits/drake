@@ -14,13 +14,13 @@ safe_regions = ContactRegion.empty();
 %%%%%%%% Opposing walls
 V = [-.5, 1.3, 1.3, -.5; -.1, -.1, 0, 0];
 [A, b] = poly2lincon(V(1,:), V(2,:));
-n = [0;3;1];
+n = [0;1;0.2];
 n = n / norm(n);
 safe_regions(end+1) = ContactRegion.fromTerrain(A, b, [0;-.05;0], n);
 
 V = [-.5, 1.3, 1.3, -.5; 0,0, .1, .1];
 [A, b] = poly2lincon(V(1,:), V(2,:));
-n = [0;-3;1];
+n = [0;-1;0.2];
 n = n / norm(n);
 safe_regions(end+1) = ContactRegion.fromTerrain(A, b, [0;.05;0], n);
 
@@ -70,7 +70,7 @@ A = [0,0,1,0,0,0;
      0,0,-1,0,0,0;
      0,0,0,0,0,1;
      0,0,0,0,0,-1];
-z_range = [-.3, -.1];
+z_range = [-.2, -.1];
 yaw_range = [-pi, pi];
 b = [z_range(2);-z_range(1);yaw_range(2);-yaw_range(1)];
 lcon_struct = struct('A', A, 'b', b);
@@ -84,14 +84,14 @@ prob.swing_speed = .5;
 prob.dt = 0.1;
 prob.use_angular_momentum = true;
 prob.max_angular_momentum = 10;
-prob.foot_force = prob.body_mass * prob.g * 1.5;
+prob.foot_force = 1.5;
 
-start_pose = struct('body', [0;0;0.2;0;0;0],...
+start_pose = struct('body', [0;0;0.1;0;0;0],...
                          'rf', [0.1;-0.05;0;0;0;0],...
                          'lf', [0.1;0.05;0;0;0;0],...
                          'rh', [-0.1;-0.05;0;0;0;0],...
                          'lh', [-0.1;0.05;0;0;0;0]);
-goal_pose = struct('body', [.5;0;nan;nan;nan;0]);
+goal_pose = struct('body', [0;0;0.4;nan;nan;0]);
 
 sol = prob.solveYalmip(start_pose, goal_pose);
 % save('sol.mat', 'sol');

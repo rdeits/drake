@@ -27,9 +27,7 @@ classdef GaitedFootstepPlanningSolution
         for j = 1:length(obj.safe_regions)
           normal = obj.safe_regions(j).eq.A(1,1:3)';
           % n' * p = b
-%           point = linprog([0;0;0], [], [], obj.safe_regions(j).eq.A(1,1:3), obj.safe_regions(j).eq.b(1));
           point = repmat(obj.safe_regions(j).eq.b / sum(normal), 3, 1);
-          assert(normal' * point == obj.safe_regions(j).eq.b);
           v.safeRegions(j) = struct('A', obj.safe_regions(j).ineq.A, 'b', obj.safe_regions(j).ineq.b, 'point', point, 'normal', normal);
         end
         xtraj = setOutputFrame(xtraj, v.inputFrame);
