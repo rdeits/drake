@@ -99,6 +99,8 @@ classdef NonGaitedFootstepPlanningProblem
 
       % A general upper limit on the distance covered in a single plan (in meters);
       MAX_DISTANCE = 30;
+      MAX_VELOCITY = MAX_DISTANCE / obj.dt;
+      MAX_ACCELERATION = 10 * obj.g;
 
       % Which indices of [x, y, z, roll, pitch, yaw] do we actually use
       POSE_INDICES = [1,2,3,6];
@@ -123,7 +125,6 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       contact_force = struct('total', 0);
-      gait.total = zeros(1, obj.nframes);
       for j = 1:length(obj.feet)
         foot = obj.feet{j};
         pose.(foot) = sdpvar(4, obj.nframes, 'full');
@@ -134,7 +135,6 @@ classdef NonGaitedFootstepPlanningProblem
           gait.(foot) = repmat(obj.gait.(foot), 1, ceil(obj.nframes / length(obj.gait.(foot))));
           gait.(foot) = gait.(foot)(1:obj.nframes);
         end
-        gait.total = gait.total + gait.(foot);
         contact_weighting.(foot) = sdpvar(6, obj.nframes, 'full');
         contact_force.(foot) = sdpvar(3, obj.nframes, 'full');
         contact_force.total = contact_force.total + contact_force.(foot);
@@ -168,6 +168,8 @@ classdef NonGaitedFootstepPlanningProblem
         start_pose.body(1) - MAX_DISTANCE <= pose.body(1,:) <= start_pose.body(1) + MAX_DISTANCE,...
         start_pose.body(2) - MAX_DISTANCE <= pose.body(2,:) <= start_pose.body(2) + MAX_DISTANCE,...
         start_pose.body(3) - MAX_DISTANCE <= pose.body(3,:) <= start_pose.body(3) + MAX_DISTANCE,...
+        -MAX_VELOCITY <= velocity.body <= MAX_VELOCITY,...
+        -MAX_ACCELERATION <= acceleration.body <= MAX_ACCELERATION,...
         sum(yaw_sector, 1) == 1,...
         -1 <= sin_yaw <= 1,...
         -1 <= cos_yaw <= 1,...
@@ -185,15 +187,20 @@ classdef NonGaitedFootstepPlanningProblem
       else
         % Require the final velocity to be zero (to avoid the solution where
         % we just plummet through the ground forever). 
-        constraints = [constraints, velocity.body(3,end) == 0];
-
-        % Constrain the initial conditions
-        start_fields = fieldnames(start_pose)';
-        for f = start_fields
-          field = f{1};
-          constraints = [constraints, pose.(field)(1:2, 1) == start_pose.(field)(1:2),...
-            velocity.body(:,1) == 0,...
+        constraints = [constraints, velocity.body(3,end) == 0,...
+          velocity.body(:,1) == 0,...
           ];
+
+      end
+
+      % Constrain the initial conditions
+      start_fields = fieldnames(start_pose)';
+      for f = start_fields
+        field = f{1};
+        for k = 1:length(POSE_INDICES)
+          if ~isnan(start_pose.(field)(POSE_INDICES(k)))
+            constraints = [constraints, pose.(field)(k,1) == start_pose.(field)(POSE_INDICES(k))];
+          end
         end
       end
 
@@ -218,8 +225,9 @@ classdef NonGaitedFootstepPlanningProblem
 
         % complementarity conditions
         constraints = [constraints,...
-          -contact_force.(foot)(3,:) <= contact_force.(foot)(1,:) <= contact_force.(foot)(3,:),...
-          -contact_force.(foot)(3,:) <= contact_force.(foot)(2,:) <= contact_force.(foot)(3,:),...
+          -obj.foot_force * gait.(foot) <= contact_force.(foot)(1,:) <= obj.foot_force * gait.(foot),...
+          -obj.foot_force * gait.(foot) <= contact_force.(foot)(2,:) <= obj.foot_force * gait.(foot),...
+          -obj.foot_force * gait.(foot) <= contact_force.(foot)(3,:) <= obj.foot_force * gait.(foot),...
           ];
 
         % Loose bounds on foot poses
@@ -236,7 +244,8 @@ classdef NonGaitedFootstepPlanningProblem
         end
 
         % Stay in convex hull of contact cone
-        constraints = [constraints, 0 <= contact_weighting.(foot) <= 1];
+        constraints = [constraints, 0 <= contact_weighting.(foot) <= 1, ...
+                       -obj.foot_force <= contact_force.(foot) <= obj.foot_force];
       end
 
       if obj.use_angular_momentum
@@ -333,6 +342,7 @@ classdef NonGaitedFootstepPlanningProblem
               constraints = [constraints,...
                 Ar_ineq * pose.(foot)(:,j) <= br_ineq,...
                 Ar_eq * pose.(foot)(:,j) == br_eq,...
+                % Friction cone (or simplex)
                 contact_force.(foot)(:,j) == obj.safe_regions(r).force_basis * contact_weighting.(foot)(:,j)',...
                 ];
             end
@@ -343,7 +353,6 @@ classdef NonGaitedFootstepPlanningProblem
             constraints = [constraints,...
               implies(gait.(foot)(j), pose.(foot)(:,j) == pose.(foot)(:,j+1)),...
               implies(gait.(foot)(j), region.(foot)(:,j) == region.(foot)(:,j+1)),...
-              % Friction cone (or simplex)
               obj.pcone((pose.(foot)(1:2,j+1) - pose.(foot)(1:2,j))/obj.dt - velocity.body(1:2,j), obj.swing_speed + MAX_DISTANCE / obj.dt * gait.(foot)(j), 4),...
               ];
           end

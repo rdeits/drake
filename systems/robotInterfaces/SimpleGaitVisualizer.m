@@ -44,6 +44,9 @@ classdef SimpleGaitVisualizer < Visualizer
         V = V';
         V = V(1:2, convhull(V(1,:), V(2,:)));
         
+        % n' * p = n' * v
+        % n1 v1 + n2 v2 + n3 v3 = n' * p
+        % n3 v3 = n' * p - (n1 v1 + n2 v2)
         V(3,:) = 1/(reg.normal(3)) * (reg.normal' * reg.point - (reg.normal(1:2)' * V(1:2,:)));
         
         patch(V(1,:), V(2,:), V(3,:), 'k', 'FaceColor', [0.8,0.8,0.8]);

@@ -3,7 +3,7 @@ classdef ContactRegion
   properties
     ineq = struct('A', [], 'b', []);
     eq = struct('A', [], 'b', []);
-    force_basis = 1e5 * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+    force_basis = 100 * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
   end
 
   methods(Static)
@@ -15,7 +15,7 @@ classdef ContactRegion
 
       obj = ContactRegion();
       obj.ineq = struct('A', [A, zeros(size(A,1), 4)], 'b', b);
-      obj.eq = struct('A', [normal', zeros(1,4)], 'b', normal' * point);
+      obj.eq = struct('A', [normal', zeros(1,3)], 'b', normal' * point);
 
       axis = cross([0;0;1], normal);
       angle = atan2(norm(axis), dot([0;0;1], normal));
@@ -24,7 +24,7 @@ classdef ContactRegion
       else
         R = eye(3);
       end
-      obj.force_basis = 1e5 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+      obj.force_basis = 100 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
     end
 
     function obj = fromTerrainWithYaw(A, b, point, normal)
@@ -35,12 +35,12 @@ classdef ContactRegion
 
       obj = ContactRegion();
       obj.ineq = struct('A', [A(:,1:2), zeros(size(A,1), 3), A(:,3)], 'b', b);
-      obj.eq = struct('A', [normal', zeros(1,4)], 'b', normal' * point);
+      obj.eq = struct('A', [normal', zeros(1,3)], 'b', normal' * point);
 
       axis = cross([0;0;1], normal);
       angle = atan2(norm(axis), dot([0;0;1], normal));
       R = axis2rotmat([axis; angle]);
-      obj.force_basis = 1e5 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+      obj.force_basis = 100 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
     end
   end
 end
