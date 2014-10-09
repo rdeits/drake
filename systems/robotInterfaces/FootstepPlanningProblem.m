@@ -21,13 +21,12 @@ classdef FootstepPlanningProblem
                                                       0.1;
                                                       pi/8;
                                                       0.01])); % currently must be linear
-    nframes = 10; % number of frames of the gait to plan. nframes/length(gait) gives the number of complete gait cycles
+    nframes = 10; % number of frames of the gait to plan
     swing_speed = 1; % m/s
     body_speed = 0.25; % m/s
     yaw_speed = 1; % rad/s
-    start_pose = [];
-    goal_pose = [];
-    safe_regions = struct('ineq', {}, 'eq', {});
+    safe_regions = ConvexTerrainRegion.empty();
+    % safe_regions = struct('ineq', {}, 'eq', {});
   end
 
   methods

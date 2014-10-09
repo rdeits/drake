@@ -4,12 +4,12 @@ function sol = testQuadrupedPlanner()
 prob = NonGaitedFootstepPlanningProblem();
 
 % Pre-generate some safe regions in IRIS region format
-safe_regions = struct('A', {}, 'b', {}, 'point', {}, 'normal', {});
+safe_regions = ContactRegion.empty();
 
 %%%%%%%% One big region
 V = [-.5, 1.3, 1.3, -.5; -.25, -.25, .25, .25];
 [A, b] = poly2lincon(V(1,:), V(2,:));
-safe_regions(end+1) = struct('A', A, 'b', b, 'point', [.3;0;0], 'normal', [0;0;1]);
+safe_regions(end+1) = ContactRegion.fromTerrain(A, b, [.3;0;0], [0;0;1]);
 
 %%%%%%%% A small gap
 % V = [-.5, .4, .4, -.5; -.25, -.25, .25, .25];
@@ -45,13 +45,7 @@ safe_regions(end+1) = struct('A', A, 'b', b, 'point', [.3;0;0], 'normal', [0;0;1
 % [A, b] = poly2lincon(V(1,:), V(2,:));
 % safe_regions(end+1) = struct('A', A, 'b', b, 'point', [.5;.05;1], 'normal', [0;0;1]);
 
-% Convert safe regions from x,y to x,y,yaw
-for j = 1:length(safe_regions)
-  safe_regions(j).A = [safe_regions(j).A, zeros(size(safe_regions(j).A, 1), 1)];
-end
-
-prob = prob.addIRISRegions(safe_regions);
-
+prob.safe_regions = safe_regions;
 prob.feet = {'rf', 'lf', 'rh', 'lh'};
 prob.foci = struct('rf', struct('v', {[0.1; -0.05]}, 'r', {0.05}),...
               'lf', struct('v', {[0.1; 0.05]}, 'r', {0.05}),...
@@ -66,9 +60,6 @@ A = [0,0,1,0,0,0;
 z_range = [-.3, -.1];
 yaw_range = [-pi, pi];
 b = [z_range(2);-z_range(1);yaw_range(2);-yaw_range(1)];
-% A = [0,0,1,0,0,0;
-%      0,0,-1,0,0,0];
-% b = [.2;.2];
 lcon_struct = struct('A', A, 'b', b);
 prob.body_to_feet_constraints = struct('rf', lcon_struct,...
                                        'lf', lcon_struct,...
@@ -76,18 +67,19 @@ prob.body_to_feet_constraints = struct('rf', lcon_struct,...
                                        'lh', lcon_struct);
 
 prob.nframes = 9;
-prob.start_pose = struct('body', [0;0;0.2;0;0;0],...
-                         'rf', [0.1;-0.05;0;0;0;0],...
-                         'lf', [0.1;0.05;0;0;0;0],...
-                         'rh', [-0.1;-0.05;0;0;0;0],...
-                         'lh', [-0.1;0.05;0;0;0;0]);
-prob.goal_pose = struct('body', [1.3;0;nan;nan;nan;0]);
 prob.swing_speed = .5;
 prob.dt = 0.1;
 prob.max_angular_momentum = 10;
 prob.foot_force = prob.body_mass * prob.g * 1.5;
 
-sol = prob.solveYalmip();
+start_pose = struct('body', [0;0;0.2;0;0;0],...
+                         'rf', [0.1;-0.05;0;0;0;0],...
+                         'lf', [0.1;0.05;0;0;0;0],...
+                         'rh', [-0.1;-0.05;0;0;0;0],...
+                         'lh', [-0.1;0.05;0;0;0;0]);
+goal_pose = struct('body', [1.3;0;nan;nan;nan;0]);
+
+sol = prob.solveYalmip(start_pose, goal_pose);
 % save('sol.mat', 'sol');
 [xtraj, v] = sol.getSimpleGaitTrajectory();
 v.playback_speed = 0.25;
