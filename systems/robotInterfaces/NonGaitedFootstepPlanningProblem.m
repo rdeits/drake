@@ -135,7 +135,7 @@ classdef NonGaitedFootstepPlanningProblem
           gait.(foot) = repmat(obj.gait.(foot), 1, ceil(obj.nframes / length(obj.gait.(foot))));
           gait.(foot) = gait.(foot)(1:obj.nframes);
         end
-        contact_weighting.(foot) = sdpvar(6, obj.nframes, 'full');
+        contact_weighting.(foot) = sdpvar(4, obj.nframes, 'full');
         contact_force.(foot) = sdpvar(3, obj.nframes, 'full');
         contact_force.total = contact_force.total + contact_force.(foot);
         nominal_pose.(foot) = [mean([obj.foci.(foot).v], 2); -0.2];  % TODO: this is hard-coded for LittleDog
@@ -171,13 +171,16 @@ classdef NonGaitedFootstepPlanningProblem
         sum(yaw_sector, 1) == 1,...
         -1 <= sin_yaw <= 1,...
         -1 <= cos_yaw <= 1,...
-        % yaw_sector(5,:) == 1,... % Disable yaw
+        yaw_sector(5,:) == 1,... % Disable yaw
         ];
 
       if obj.periodic
         % Enforce periodicity
-        constraints = [constraints, velocity.body(:,end) == velocity.body(:,1),...
-          acceleration.body(:,end) == acceleration.body(:,1)];
+        constraints = [constraints, ...
+          velocity.body(:,end) == velocity.body(:,1),...
+          acceleration.body(:,end) == acceleration.body(:,1),...
+          pose.body(3,end) == pose.body(3,1),...
+          ];
         for f = obj.feet
           foot = f{1};
           constraints = [constraints, gait.(foot)(1) == gait.(foot)(end)];
@@ -215,7 +218,8 @@ classdef NonGaitedFootstepPlanningProblem
         foot = f{1};
         if obj.periodic
           constraints = [constraints,...
-            gait.(foot)(1) == gait.(foot)(end)];
+            gait.(foot)(1) == gait.(foot)(end),...
+            pose.(foot)(:,1) - pose.body(:,1) == pose.(foot)(:,end) - pose.body(:,end)];
         else
           % Feet on the ground at the start and end
           constraints = [constraints, gait.(foot)([1,end]) == 1];
@@ -243,6 +247,7 @@ classdef NonGaitedFootstepPlanningProblem
 
         % Stay in convex hull of contact cone
         constraints = [constraints, 0 <= contact_weighting.(foot) <= 1, ...
+                       sum(contact_weighting.(foot), 1) <= 1,...
                        -obj.foot_force <= contact_force.(foot) <= obj.foot_force];
       end
 
@@ -275,7 +280,8 @@ classdef NonGaitedFootstepPlanningProblem
 
             for f = obj.feet
               foot = f{1};
-              new_momentum = new_momentum + cross(nominal_pose.(foot), contact_force.(foot)(:,j));
+              % new_momentum = new_momentum + cross(nominal_pose.(foot), contact_force.(foot)(:,j));
+              new_momentum = new_momentum + cross(nominal_pose.(foot), [0;0;1]) * contact_force.(foot)(3,j);
             end
             constraints = [constraints, ...
               angular_momentum.body(:,j+1) == new_momentum,...
@@ -372,17 +378,17 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       % Penalize contact force
-      objective = objective + 0.05 * (sum(sum(contact_force.total.^2,1)) - 1 * (obj.nframes-1));
+      objective = objective + 0.5 * (sum(sum(contact_force.total.^2,1)) - 1 * (obj.nframes-1));
 
       % Penalize angular momentum
       if obj.use_angular_momentum
-        objective = objective + 0.1 * sum(sum(angular_momentum.body.^2,1));
+        objective = objective + 10 * sum(sum(angular_momentum.body.^2,1));
       end
 
       % Keep the legs near the body if possible
       for f = obj.feet
         foot = f{1};
-        objective = objective + 0.01 * sum(sum(abs(pose.(foot)-pose.body), 1));
+        objective = objective + 0.1 * sum(sum(abs(pose.(foot)-pose.body), 1));
       end
 
       optimize(constraints, objective, sdpsettings('solver', 'gurobi'));
@@ -472,6 +478,9 @@ classdef NonGaitedFootstepPlanningProblem
       subplot(224)
       plot(t(1:end-1), sqrt(sum(double((pose.rh(1:2,2:end) - pose.rh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
       title('rh')
+
+      double(contact_weighting.rf)
+      double(contact_weighting.rh)
 
     end
   end

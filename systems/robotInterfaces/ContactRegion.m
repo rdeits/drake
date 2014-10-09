@@ -3,7 +3,7 @@ classdef ContactRegion
   properties
     ineq = struct('A', [], 'b', []);
     eq = struct('A', [], 'b', []);
-    force_basis = 10 * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+    force_basis = 10 * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1]];
   end
 
   methods(Static)
@@ -24,7 +24,7 @@ classdef ContactRegion
       else
         R = eye(3);
       end
-      obj.force_basis = 10 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+      obj.force_basis = 10 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1]];
     end
 
     function obj = fromTerrainWithYaw(A, b, point, normal)
@@ -40,7 +40,7 @@ classdef ContactRegion
       axis = cross([0;0;1], normal);
       angle = atan2(norm(axis), dot([0;0;1], normal));
       R = axis2rotmat([axis; angle]);
-      obj.force_basis = 10 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1], [0;0;0], [0;0;0]];
+      obj.force_basis = 10 * R * [[1;0;1], [0;1;1], [-1;0;1], [0;-1;1]];
     end
   end
 end
