@@ -21,7 +21,7 @@ classdef NonGaitedFootstepPlanningProblem
                                                       0.1;
                                                       pi/8;
                                                       0.01])); % currently must be linear
-    nframes = 10; % number of frames of the gait to plan
+    nframes = 13; % number of frames of the gait to plan
     swing_speed = 1; % m/s
     body_speed = 0.25; % m/s
     yaw_speed = 1; % rad/s
@@ -113,9 +113,21 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       pose = struct();
-      pose.body = sdpvar(4, obj.nframes, 'full');
-      velocity.body = sdpvar(3, obj.nframes, 'full');
-      acceleration.body = sdpvar(3, obj.nframes, 'full');
+      pose.body = sdpvar(4,1);
+      velocity = struct();
+      velocity.body = sdpvar(4,1);
+      acceleration = struct();
+      acceleration.body = sdpvar(4,1);
+      C = cell(1, obj.nframes-1);
+      for j = 1:obj.nframes-1
+        C{j} = sdpvar(4, degree+1); % x y z yaw
+        pose.body(:,j) = C{j} * [1;0;0];
+        velocity.body(:,j) = C{j} * [0; 1; 0];
+        acceleration.body(:,j) = C{j} * [0; 0; 2];
+      end
+      pose.body(:,obj.nframes) = C{end} * [1;obj.dt;obj.dt^2];
+      velocity.body(:,obj.nframes) = C{end} * [0;1;2*obj.dt];
+      acceleration.body(:,obj.nframes) = C{end} * [0;0;2];
 
       region = struct();
       gait = struct();
@@ -134,7 +146,7 @@ classdef NonGaitedFootstepPlanningProblem
         if isempty(obj.gait)
           gait.(foot) = binvar(1, obj.nframes, 'full');
         else
-          gait.(foot) = repmat(obj.gait.(foot), 1, ceil(obj.nframes / length(obj.gait.(foot))));
+          gait.(foot) = repmat(obj.gait.(foot), 1, ceil((obj.nframes) / length(obj.gait.(foot))));
           gait.(foot) = gait.(foot)(1:obj.nframes);
         end
         contact_weighting.(foot) = sdpvar(4, obj.nframes, 'full');
@@ -191,7 +203,7 @@ classdef NonGaitedFootstepPlanningProblem
         % Require the final velocity to be zero (to avoid the solution where
         % we just plummet through the ground forever). 
         constraints = [constraints, velocity.body(3,end) == 0,...
-          velocity.body(:,1) == 0,...
+          velocity.body(1:3,1) == 0,...
           ];
 
       end
@@ -269,13 +281,19 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       for j = 1:obj.nframes
+        if j < obj.nframes-1
+          % Enforce continuity
+          constraints = [constraints,...
+            C{j} * [1;obj.dt;obj.dt^2] == C{j+1} * [1;0;0],...
+            C{j} * [0;1;2*obj.dt] == C{j+1} * [0;1;0],...
+            ];
+        end
+        
         if j < obj.nframes
-          % Enforce ballistic dynamics
-          constraints = [constraints, ...
-                         pose.body(1:3,j+1) == pose.body(1:3,j) + velocity.body(1:3,j) * obj.dt + acceleration.body(1:3,j) * 0.5 * obj.dt^2,...
-                         velocity.body(1:3,j+1) == velocity.body(1:3,j) + acceleration.body(1:3,j) * obj.dt,...
-                         acceleration.body(1:3,j) == contact_force.total(1:3,j)*obj.g + [0;0;-obj.g],...
-                         ];
+          % Enforce dynamics
+          constraints = [constraints,...
+            C{j}(1:3,:) * [0;0;2] == contact_force.total(1:3,j)*obj.g + [0;0;-obj.g],...
+            ];
 
           if obj.use_angular_momentum
             new_momentum = angular_momentum.body(:,j);
@@ -344,7 +362,7 @@ classdef NonGaitedFootstepPlanningProblem
                 % Friction cone (or simplex)
                 implies(region.(foot)(r,j), contact_force.(foot)(:,j) == obj.safe_regions(r).force_basis * contact_weighting.(foot)(:,j)),...
                 ];
-            else
+            elseif region.(foot)(r,j)
               constraints = [constraints,...
                 Ar_ineq * pose.(foot)(:,j) <= br_ineq,...
                 Ar_eq * pose.(foot)(:,j) == br_eq,...
@@ -396,11 +414,6 @@ classdef NonGaitedFootstepPlanningProblem
       optimize(constraints, objective, sdpsettings('solver', 'gurobi'));
 
       % Extract the result
-      fnames = fieldnames(pose)';
-      for f = fnames
-        field = f{1};
-        pose.(field) = double(pose.(field));
-      end
       region_assignments = struct();
 
       for f = obj.feet
@@ -414,12 +427,32 @@ classdef NonGaitedFootstepPlanningProblem
         end
       end
 
+      breaks = 0:obj.dt:((obj.nframes-1)*obj.dt);
+      coeffs = zeros([4, length(breaks)-1, degree+1]);
+      for k = 1:length(breaks)-1
+        c = value(C{k});
+        for i = 1:4
+          coeffs(i,k,:) = flip(c(i,:));
+        end
+      end
+
+      traj = struct();
+      traj.body = PPTrajectory(mkpp(breaks, coeffs, 4));
+      for f = obj.feet
+        foot = f{1};
+        contact_traj.(foot) = PPTrajectory(zoh(breaks, logical(round(double(gait.(foot))))));
+        contact_force_traj.(foot) = PPTrajectory(zoh(breaks, double(contact_force.(foot))));
+        traj.(foot) = PPTrajectory(foh(breaks, double(pose.(foot))));
+      end
+
       t = 0:obj.dt:((obj.nframes - 1) * obj.dt);
 
       sol = GaitedFootstepPlanningSolution();
       sol.t = t;
-      sol.pose = pose;
+      sol.pose = traj;
       sol.full_gait = gait;
+      sol.contact = contact_traj;
+      sol.contact_force = contact_force_traj;
       sol.safe_regions = obj.safe_regions;
       sol.region_assignments = region_assignments;
 
@@ -427,62 +460,67 @@ classdef NonGaitedFootstepPlanningProblem
       clf
       hold on
       subplot(311)
-      plot(t, double(acceleration.body(3,:)));
+      fnplt(traj.body(3));
       subplot(312)
-      plot(t, double(velocity.body(3,:)));
+      fnplt(fnder(traj.body(3), 1));
       subplot(313)
-      plot(t, double(pose.body(3,:)));
+      fnplt(fnder(traj.body(3), 2));
+      % plot(t, double(acceleration.body(3,:)));
+      % subplot(312)
+      % plot(t, double(velocity.body(3,:)));
+      % subplot(313)
+      % plot(t, double(pose.body(3,:)));
 
-      figure(6);
-      clf
-      hold on
-      subplot(221)
-      plot(t, double(sqrt(sum(contact_force.lf.^2 ,1))));
-      title('lf')
-      subplot(222)
-      plot(t, double(sqrt(sum(contact_force.rf.^2 ,1))));
-      title('rf')
-      subplot(223)
-      plot(t, double(sqrt(sum(contact_force.lh.^2 ,1))));
-      title('lh')
-      subplot(224)
-      plot(t, double(sqrt(sum(contact_force.rh.^2 ,1))));
-      title('rh')
+      % figure(6);
+      % clf
+      % hold on
+      % subplot(221)
+      % plot(t, double(sqrt(sum(contact_force.lf.^2 ,1))));
+      % title('lf')
+      % subplot(222)
+      % plot(t, double(sqrt(sum(contact_force.rf.^2 ,1))));
+      % title('rf')
+      % subplot(223)
+      % plot(t, double(sqrt(sum(contact_force.lh.^2 ,1))));
+      % title('lh')
+      % subplot(224)
+      % plot(t, double(sqrt(sum(contact_force.rh.^2 ,1))));
+      % title('rh')
 
-      figure(7);
-      clf
-      hold on
-      subplot(221)
-      plot(t, double(contact_force.lf(3,:)));
-      title('lf')
-      subplot(222)
-      plot(t, double(contact_force.rf(3,:)));
-      title('rf')
-      subplot(223)
-      plot(t, double(contact_force.lh(3,:)));
-      title('lh')
-      subplot(224)
-      plot(t, double(contact_force.rh(3,:)));
-      title('rh')
+      % figure(7);
+      % clf
+      % hold on
+      % subplot(221)
+      % plot(t, double(contact_force.lf(3,:)));
+      % title('lf')
+      % subplot(222)
+      % plot(t, double(contact_force.rf(3,:)));
+      % title('rf')
+      % subplot(223)
+      % plot(t, double(contact_force.lh(3,:)));
+      % title('lh')
+      % subplot(224)
+      % plot(t, double(contact_force.rh(3,:)));
+      % title('rh')
 
-      figure(8);
-      clf
-      hold on
-      subplot(221)
-      plot(t(1:end-1), sqrt(sum(double((pose.lf(1:2,2:end) - pose.lf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      title('lf')
-      subplot(222)
-      plot(t(1:end-1), sqrt(sum(double((pose.rf(1:2,2:end) - pose.rf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      title('rf')
-      subplot(223)
-      plot(t(1:end-1), sqrt(sum(double((pose.lh(1:2,2:end) - pose.lh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      title('lh')
-      subplot(224)
-      plot(t(1:end-1), sqrt(sum(double((pose.rh(1:2,2:end) - pose.rh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      title('rh')
+      % figure(8);
+      % clf
+      % hold on
+      % subplot(221)
+      % plot(t(1:end-1), sqrt(sum(double((pose.lf(1:2,2:end) - pose.lf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
+      % title('lf')
+      % subplot(222)
+      % plot(t(1:end-1), sqrt(sum(double((pose.rf(1:2,2:end) - pose.rf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
+      % title('rf')
+      % subplot(223)
+      % plot(t(1:end-1), sqrt(sum(double((pose.lh(1:2,2:end) - pose.lh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
+      % title('lh')
+      % subplot(224)
+      % plot(t(1:end-1), sqrt(sum(double((pose.rh(1:2,2:end) - pose.rh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
+      % title('rh')
 
-      double(contact_weighting.rf)
-      double(contact_weighting.rh)
+      % double(contact_weighting.rf)
+      % double(contact_weighting.rh)
 
     end
   end

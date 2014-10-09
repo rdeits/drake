@@ -5,6 +5,8 @@ classdef GaitedFootstepPlanningSolution
   properties
     t;
     pose;
+    contact;
+    contact_force;
     full_gait;
     safe_regions;
     region_assignments;
@@ -14,13 +16,13 @@ classdef GaitedFootstepPlanningSolution
     function [xtraj, v] = getSimpleGaitTrajectory(obj)
       % Return a trajectory of [body_pose; foot1_pose; foot2_pose; etc...] and,
       % optionally, a visualizer to display it with.
-      xtraj = PPTrajectory(foh(obj.t, obj.pose.body));
+      xtraj = obj.pose.body;
       feet = fieldnames(obj.full_gait)';
       for f = feet
         foot = f{1};
         xtraj = vertcat(xtraj, ...
-         PPTrajectory(zoh(obj.t, obj.full_gait.(foot))),...
-         PPTrajectory(foh(obj.t, obj.pose.(foot))));
+          obj.contact.(foot),...
+          obj.pose.(foot));
       end
       if nargout > 1
         v = SimpleGaitVisualizer(feet);
