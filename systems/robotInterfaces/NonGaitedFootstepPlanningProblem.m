@@ -398,11 +398,11 @@ classdef NonGaitedFootstepPlanningProblem
       end
 
       % Penalize contact force
-      objective = objective + 0.5 * (sum(sum(contact_force.total.^2,1)) - 1 * (obj.nframes-1));
+      objective = objective + 0.5 * (sum(sum((acceleration.body(:,1:obj.nframes-1)./obj.g - repmat([0;0;-1;0], 1, obj.nframes-1)).^2, 1)) - 1 * (obj.nframes-1));
 
       % Penalize angular momentum
       if obj.use_angular_momentum
-        objective = objective + 100 * sum(sum(abs(angular_momentum.body),1));
+        objective = objective + 1 * sum(sum(abs(angular_momentum.body),1));
       end
 
       % Keep the legs near the body if possible
@@ -456,71 +456,38 @@ classdef NonGaitedFootstepPlanningProblem
       sol.safe_regions = obj.safe_regions;
       sol.region_assignments = region_assignments;
 
+
+      value(angular_momentum.body)
+      
       figure(5)
       clf
       hold on
       subplot(311)
+      title('CoM z')
       fnplt(traj.body(3));
       subplot(312)
+      title('CoM z velocity')
       fnplt(fnder(traj.body(3), 1));
       subplot(313)
+      title('CoM z acceleration')
       fnplt(fnder(traj.body(3), 2));
-      % plot(t, double(acceleration.body(3,:)));
-      % subplot(312)
-      % plot(t, double(velocity.body(3,:)));
-      % subplot(313)
-      % plot(t, double(pose.body(3,:)));
 
-      % figure(6);
-      % clf
-      % hold on
-      % subplot(221)
-      % plot(t, double(sqrt(sum(contact_force.lf.^2 ,1))));
-      % title('lf')
-      % subplot(222)
-      % plot(t, double(sqrt(sum(contact_force.rf.^2 ,1))));
-      % title('rf')
-      % subplot(223)
-      % plot(t, double(sqrt(sum(contact_force.lh.^2 ,1))));
-      % title('lh')
-      % subplot(224)
-      % plot(t, double(sqrt(sum(contact_force.rh.^2 ,1))));
-      % title('rh')
-
-      % figure(7);
-      % clf
-      % hold on
-      % subplot(221)
-      % plot(t, double(contact_force.lf(3,:)));
-      % title('lf')
-      % subplot(222)
-      % plot(t, double(contact_force.rf(3,:)));
-      % title('rf')
-      % subplot(223)
-      % plot(t, double(contact_force.lh(3,:)));
-      % title('lh')
-      % subplot(224)
-      % plot(t, double(contact_force.rh(3,:)));
-      % title('rh')
-
-      % figure(8);
-      % clf
-      % hold on
-      % subplot(221)
-      % plot(t(1:end-1), sqrt(sum(double((pose.lf(1:2,2:end) - pose.lf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      % title('lf')
-      % subplot(222)
-      % plot(t(1:end-1), sqrt(sum(double((pose.rf(1:2,2:end) - pose.rf(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      % title('rf')
-      % subplot(223)
-      % plot(t(1:end-1), sqrt(sum(double((pose.lh(1:2,2:end) - pose.lh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      % title('lh')
-      % subplot(224)
-      % plot(t(1:end-1), sqrt(sum(double((pose.rh(1:2,2:end) - pose.rh(1:2,1:end-1))/obj.dt - velocity.body(1:2,1:end-1)).^2,1)));
-      % title('rh')
-
-      % double(contact_weighting.rf)
-      % double(contact_weighting.rh)
+      figure(6)
+      clf
+      title('Z contact force')
+      hold on
+      subplot(221)
+      fnplt(contact_force_traj.lf(3));
+      title('lf')
+      subplot(222)
+      fnplt(contact_force_traj.rf(3));
+      title('rf')
+      subplot(223)
+      fnplt(contact_force_traj.lh(3));
+      title('lh')
+      subplot(224)
+      fnplt(contact_force_traj.rh(3));
+      title('rh')
 
     end
   end

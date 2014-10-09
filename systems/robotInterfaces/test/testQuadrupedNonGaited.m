@@ -96,7 +96,7 @@ prob.nframes = 13;
 prob.swing_speed = .5;
 prob.dt = 0.1;
 prob.use_angular_momentum = true;
-prob.max_angular_momentum = 10;
+prob.max_angular_momentum = 0.1;
 prob.foot_force = 1.1;
 
 start_pose = struct('body', [0;0;0.15;0;0;0],...
