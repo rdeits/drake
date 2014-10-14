@@ -109,8 +109,10 @@ while 1
   end
 
   if isempty(zmp_pts)
-    instep_shift = [0.0;st.walking_params.drake_instep_shift;0];
-    zmp1 = shift_step_inward(biped, st, instep_shift);
+    zmp1_back = shift_step_inward(biped, st, [-0.05;st.walking_params.drake_instep_shift;0]);
+    zmp1_midback = shift_step_inward(biped, st, [-0.025;st.walking_params.drake_instep_shift;0]);
+    zmp1_mid = shift_step_inward(biped, st, [0;st.walking_params.drake_instep_shift;0]);
+    zmp1_front = shift_step_inward(biped, st, [0.05;st.walking_params.drake_instep_shift;0]);
     zmp2 = feetCenter(sw1, st);
     zmp2 = zmp2(1:2);
   else
@@ -120,10 +122,10 @@ while 1
 
   supp1 = struct('right', ~is_right_foot, 'left', is_right_foot);
   supp2 = struct('right', 1, 'left', 1);
-  zmp_knots(end+1) = struct('t', t0 + 0.5 * takeoff_time, 'zmp', zmp1, 'supp', supp2);
-  zmp_knots(end+1) = struct('t', t0 + takeoff_time, 'zmp', zmp1, 'supp', supp1);
-  zmp_knots(end+1) = struct('t', t0 + mean([takeoff_time, landing_time]), 'zmp', zmp1, 'supp', supp1);
-  zmp_knots(end+1) = struct('t', t0 + landing_time, 'zmp', zmp1, 'supp', supp2);
+  zmp_knots(end+1) = struct('t', t0 + 0.5 * takeoff_time, 'zmp', zmp1_back, 'supp', supp2);
+  zmp_knots(end+1) = struct('t', t0 + takeoff_time, 'zmp', zmp1_midback, 'supp', supp1);
+  zmp_knots(end+1) = struct('t', t0 + mean([takeoff_time, landing_time]), 'zmp', zmp1_mid, 'supp', supp1);
+  zmp_knots(end+1) = struct('t', t0 + landing_time, 'zmp', zmp1_front, 'supp', supp2);
   zmp_knots(end+1) = struct('t', t0 + step_duration, 'zmp', zmp2, 'supp', supp2);
 
   istep.(sw_foot) = istep.(sw_foot) + 1;
@@ -159,7 +161,7 @@ for f = {'right', 'left'}
   end
   link_constraints(end+1) = struct('link_ndx', body_ind, 'pt', [0;0;0], 'min_traj', [], 'max_traj', [], 'traj', PPTrajectory(foh([step_knots.t], step_poses)));
 end
-zmptraj = PPTrajectory(foh([zmp_knots.t], [zmp_knots.zmp]));
+zmptraj = PPTrajectory(pchip([zmp_knots.t], [zmp_knots.zmp]));
 
 % create support body trajectory
 rfoot_body_idx = biped.getFrame(biped.foot_frame_id.right).body_ind;
