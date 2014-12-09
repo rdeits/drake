@@ -98,6 +98,10 @@ classdef BodyMotionControlBlock < DrakeSystem
         [body_des,body_v_des,body_vdot_des] = evalCubicSplineSegment(tt,coefs);
       end
       
+      lcmgl = LCMGLClient(sprintf('link_%d_desired', obj.body_ind));
+      lcmgl.sphere(body_des(1:3), 0.03, 20, 20);
+      lcmgl.switchBuffers();
+
       if (obj.use_mex == 0 || obj.use_mex==2)
         q = x(1:obj.nq);
         qd = x(obj.nq+1:end);
