@@ -35,9 +35,17 @@ cost.base_z = 0;
 cost.base_roll = 1000;
 cost.base_pitch = 1000;
 cost.base_yaw = 0;
-cost.back_bkz = 10;
-cost.back_bky = 100;
-cost.back_bkx = 100;
+if isa(obj, 'Atlas')
+  % special costs specifically for Atlas
+  cost.back_bkz = 10;
+  cost.back_bky = 100;
+  cost.back_bkx = 100;
+elseif isa(obj, 'Atrias3DNo4Bar')
+  cost.qfoot1R = 0;
+  cost.qfoot2R = 0;
+  cost.qfoot1L = 0;
+  cost.qfoot2L = 0;
+end
 cost = double(cost);
 ikoptions = IKoptions(obj);
 ikoptions = ikoptions.setQ(diag(cost(1:obj.getNumPositions)));
