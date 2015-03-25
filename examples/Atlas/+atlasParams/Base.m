@@ -32,6 +32,9 @@ classdef Base
                                                             'eta', 0)}, ...
                                                     1, nbod),...
                                'Kd', mat2cell(zeros(6, nbod), 6, ones(1, nbod)));
+      obj.body_motion(r.findLinkId('pelvis')).integrator.gains = 1.0 * ones(6,1);
+      obj.body_motion(r.findLinkId('pelvis')).integrator.clamps = 0.1 * ones(6,1);
+      obj.body_motion(r.findLinkId('pelvis')).integrator.eta = 0.005;
       obj.body_motion(r.findLinkId('pelvis')).weight = 0.01;
 
       obj.whole_body = struct('Kp', 160*ones(r.getNumPositions(), 1),...

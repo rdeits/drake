@@ -69,7 +69,7 @@ void parseBodyMotionParams(const mxArray *params_obj, int i, BodyMotionParams *p
   Map<Vector6d>Kd(mxGetPrSafe(pobj));
   params->Kd = Kd;
 
-  parseIntegratorParams(myGetField(params_obj, "integrator"), &(params->integrator));
+  parseIntegratorParams(myGetField(params_obj, i, "integrator"), &(params->integrator));
 
   pobj = myGetField(params_obj, i, "weight");
   sizecheck(pobj, 1, 1);

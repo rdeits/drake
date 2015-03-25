@@ -145,9 +145,11 @@ std::shared_ptr<drake::lcmt_qp_controller_input> encodeQPInputLCM(const mxArray 
 }
 
 void updateIntegratorState(const VectorXd &error, double dt, const IntegratorParams &params, VectorXd &state) {
+  // std::cout << "error: " << error << " gains: " << params.gains << " clamps: " << params.clamps << " eta: " << params.eta;
   state = (1 - params.eta) * state + params.gains.cwiseProduct(error) * dt;
   state = state.array().max(-params.clamps.array());
   state = state.array().min(params.clamps.array());
+  // std::cout << "state after update: " << state << std::endl;
 }
 
 PIDOutput wholeBodyPID(NewQPControllerData *pdata, double t, const Ref<const VectorXd> &q, const Ref<const VectorXd> &qd, const Ref<const VectorXd> &q_des, WholeBodyParams *params) {
