@@ -56,6 +56,7 @@ struct QPControllerState {
   bool foot_contact_prev[2];
   VectorXd vref_integrator_state;
   VectorXd q_integrator_state;
+  std::vector<VectorXd> body_motion_integrator_state;
   std::set<int> active;
   int num_active_contact_pts;
 
@@ -116,6 +117,7 @@ struct WholeBodyParams {
 struct BodyMotionParams {
   VectorXd Kp;
   VectorXd Kd;
+  VectorXd Ki;
   Bounds accel_bounds;
   double weight;
 };
@@ -238,5 +240,7 @@ VectorXd velocityReference(NewQPControllerData *pdata, double t, const Ref<Vecto
 std::vector<SupportStateElement> loadAvailableSupports(std::shared_ptr<drake::lcmt_qp_controller_input> qp_input);
 
 int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_controller_input> qp_input, DrakeRobotState &robot_state, const Ref<Matrix<bool, Dynamic, 1>> &b_contact_force, QPControllerOutput *qp_output, std::shared_ptr<QPControllerDebugData> debug);
+
+Vector6d bodyMotionPD(RigidBodyManipulator *r, DrakeRobotState &robot_state, const int body_index, const Ref<const Vector6d> &body_pose_des, const Ref<const Vector6d> &body_v_des, const Ref<const Vector6d> &body_vdot_des, const BodyMotionParams &params);
 
 #endif

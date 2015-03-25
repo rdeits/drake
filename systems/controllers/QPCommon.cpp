@@ -269,6 +269,31 @@ void applyJointPDOverride(const std::vector<drake::lcmt_joint_pd_override> &join
   }
 }
 
+Vector6d bodyMotionPD(RigidBodyManipulator *r, DrakeRobotState &robot_state, const int body_index, const Ref<const Vector6d> &body_pose_des, const Ref<const Vector6d> &body_v_des, const Ref<const Vector6d> &body_vdot_des, const BodyMotionParams &params) {
+
+  r->doKinematics(robot_state.q,false,robot_state.qd);
+
+  // TODO: this must be updated to use quaternions/spatial velocity
+  Vector6d body_pose;
+  MatrixXd J = MatrixXd::Zero(6,r->num_positions);
+  Vector4d zero = Vector4d::Zero();
+  zero(3) = 1.0;
+  r->forwardKin(body_index,zero,1,body_pose);
+  r->forwardJac(body_index,zero,1,J);
+
+  Vector6d body_error;
+  body_error.head<3>()= body_pose_des.head<3>()-body_pose.head<3>();
+
+  Vector3d error_rpy,pose_rpy,des_rpy;
+  pose_rpy = body_pose.tail<3>();
+  des_rpy = body_pose_des.tail<3>();
+  angleDiff(pose_rpy,des_rpy,error_rpy);
+  body_error.tail(3) = error_rpy;
+
+  Vector6d body_vdot = (params.Kp.array()*body_error.array()).matrix() + (params.Kd.array()*(body_v_des-J*robot_state.qd).array()).matrix() + body_vdot_des;
+  return body_vdot;
+}
+
 int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_controller_input> qp_input, DrakeRobotState &robot_state, const Ref<Matrix<bool, Dynamic, 1>> &b_contact_force, QPControllerOutput *qp_output, std::shared_ptr<QPControllerDebugData> debug) {
   // The primary solve loop for our controller. This constructs and solves a Quadratic Program and produces the instantaneous desired torques, along with reference positions, velocities, and accelerations. It mirrors the Matlab implementation in atlasControllers.InstantaneousQPController.setupAndSolveQP(), and more documentation can be found there. 
   // Note: argument `debug` MAY be set to NULL, which signals that no debug information is requested.
@@ -347,7 +372,7 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
     Matrix<double, 6, 4> coefs = coefs_rowmaj;
     double t_spline = std::max(qp_input->body_motion_data[i].ts[0], std::min(qp_input->body_motion_data[i].ts[1], robot_state.t));
     evaluateCubicSplineSegment(t_spline - qp_input->body_motion_data[i].ts[0], coefs, body_pose_des, body_v_des, body_vdot_des);
-    desired_body_accelerations[i].body_vdot = bodyMotionPD(pdata->r, robot_state, body_id0, body_pose_des, body_v_des, body_vdot_des, params->body_motion[body_id0].Kp, params->body_motion[body_id0].Kd);
+    desired_body_accelerations[i].body_vdot = bodyMotionPD(pdata->r, robot_state, body_id0, body_pose_des, body_v_des, body_vdot_des, params->body_motion[body_id0]);
     desired_body_accelerations[i].weight = weight;
     desired_body_accelerations[i].accel_bounds = params->body_motion[body_id0].accel_bounds;
     // mexPrintf("body: %d, vdot: %f %f %f %f %f %f weight: %f\n", body_id0, 
