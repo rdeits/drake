@@ -314,6 +314,21 @@ DesiredBodyAcceleration bodyMotionPID(NewQPControllerData *pdata, DrakeRobotStat
   return desired_body_acceleration;
 }
 
+std::set<int> findUntrackedBodies(NewQPControllerData *pdata, const std::vector<drake::lcmt_body_motion_data> &body_motion_data) {
+  std::vector<int> tracked_body_ids(body_motion_data.size());
+  for (std::vector<drake::lcmt_body_motion_data>::const_iterator it=body_motion_data.begin(); it != body_motion_data.end(); ++it) {
+    tracked_body_ids[it - body_motion_data.begin()] = it->body_id - 1;
+  }
+  std::sort(tracked_body_ids.begin(), tracked_body_ids.end());
+
+  std::vector<int> all_body_ids(pdata->rpc.num_bodies);
+  std::iota(all_body_ids.begin(), all_body_ids.end(), 0);
+
+  std::set<int> untracked_bodies;
+  std::set_difference(all_body_ids.begin(), all_body_ids.end(), tracked_body_ids.begin(), tracked_body_ids.end(), std::inserter(untracked_bodies, untracked_bodies.end()));
+  return untracked_bodies;
+}
+
 int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_controller_input> qp_input, DrakeRobotState &robot_state, const Ref<Matrix<bool, Dynamic, 1>> &b_contact_force, QPControllerOutput *qp_output, std::shared_ptr<QPControllerDebugData> debug) {
   // The primary solve loop for our controller. This constructs and solves a Quadratic Program and produces the instantaneous desired torques, along with reference positions, velocities, and accelerations. It mirrors the Matlab implementation in atlasControllers.InstantaneousQPController.setupAndSolveQP(), and more documentation can be found there. 
   // Note: argument `debug` MAY be set to NULL, which signals that no debug information is requested.
@@ -384,6 +399,11 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
   CubicSplineResult spline_result;
   // Vector6d body_pose_des, body_v_des, body_vdot_des;
   // Vector6d body_vdot;
+
+  std::set<int> untracked_bodies = findUntrackedBodies(pdata, qp_input->body_motion_data);
+  for (std::set<int>::iterator it = untracked_bodies.begin(); it != untracked_bodies.end(); ++it) {
+    pdata->state.body_motion_integrator_state[*it] = VectorXd::Zero(pdata->state.body_motion_integrator_state[*it].size());
+  }
 
   for (int i=0; i < qp_input->num_tracked_bodies; i++) {
     int body_id0 = qp_input->body_motion_data[i].body_id - 1;
