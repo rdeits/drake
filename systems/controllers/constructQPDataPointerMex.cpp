@@ -6,6 +6,22 @@
 
 using namespace std;
 
+void parseIntegratorParams(const mxArray *params_obj, IntegratorParams *params) {
+  const mxArray *pobj;
+  pobj = myGetField(params_obj, "gains");
+  Map<VectorXd> gains(mxGetPrSafe(pobj), mxGetNumberOfElements(pobj));
+  params->gains = gains;
+
+  pobj = myGetField(params_obj, "clamps");
+  Map<VectorXd> clamps(mxGetPrSafe(pobj), mxGetNumberOfElements(pobj));
+  params->clamps = clamps;
+
+  pobj = myGetField(params_obj, "eta");
+  params->eta = mxGetScalar(pobj);
+
+  return;
+}
+
 void parseWholeBodyParams(const mxArray *params_obj, RigidBodyManipulator *r, WholeBodyParams *params) {
   const mxArray *int_obj = myGetField(params_obj, "integrator");
   const mxArray *qddbound_obj = myGetField(params_obj, "qdd_bounds");
@@ -29,11 +45,7 @@ void parseWholeBodyParams(const mxArray *params_obj, RigidBodyManipulator *r, Wh
   Map<VectorXd>w_qdd(mxGetPrSafe(myGetField(params_obj, "w_qdd")), mxGetNumberOfElements(myGetField(params_obj, "w_qdd")));
   params->w_qdd = w_qdd;
 
-  Map<VectorXd>gains(mxGetPrSafe(myGetField(int_obj, "gains")), mxGetNumberOfElements(myGetField(int_obj, "gains")));
-  params->integrator.gains = gains;
-
-  Map<VectorXd>clamps(mxGetPrSafe(myGetField(int_obj, "clamps")), mxGetNumberOfElements(myGetField(int_obj, "clamps")));
-  params->integrator.clamps = clamps;
+  parseIntegratorParams(int_obj, &(params->integrator));
 
   Map<VectorXd>min(mxGetPrSafe(myGetField(qddbound_obj, "min")), mxGetNumberOfElements(myGetField(qddbound_obj, "min")));
   params->qdd_bounds.min = min;
@@ -57,10 +69,7 @@ void parseBodyMotionParams(const mxArray *params_obj, int i, BodyMotionParams *p
   Map<Vector6d>Kd(mxGetPrSafe(pobj));
   params->Kd = Kd;
 
-  pobj = myGetField(params_obj, i, "Ki");
-  sizecheck(pobj, 6, 1);
-  Map<Vector6d>Ki(mxGetPrSafe(pobj));
-  params->Ki = Ki;
+  parseIntegratorParams(myGetField(params_obj, "integrator"), &(params->integrator));
 
   pobj = myGetField(params_obj, i, "weight");
   sizecheck(pobj, 1, 1);
@@ -264,6 +273,9 @@ void parseRobotPropertyCache(const mxArray *rpc_obj, RobotPropertyCache *rpc) {
   Map<VectorXd>actuated_indices(mxGetPrSafe(pobj), mxGetNumberOfElements(pobj));
   rpc->actuated_indices = actuated_indices.cast<int>().array() - 1;
 
+  pobj = myGetField(rpc_obj, "num_bodies");
+  rpc->num_bodies = (int) mxGetScalar(pobj);
+
   return;
 }
 
@@ -397,6 +409,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
   pdata->state.t_prev = 0;
   pdata->state.vref_integrator_state = VectorXd::Zero(pdata->r->num_velocities);
   pdata->state.q_integrator_state = VectorXd::Zero(pdata->r->num_positions);
+  pdata->state.body_motion_integrator_state.resize(pdata->rpc.num_bodies);
+  for (int i=0; i < pdata->rpc.num_bodies; i++) {
+    pdata->state.body_motion_integrator_state[i] = VectorXd::Zero(6);
+  }
   pdata->state.foot_contact_prev[0] = false;
   pdata->state.foot_contact_prev[1] = false;
   pdata->state.num_active_contact_pts = 0;

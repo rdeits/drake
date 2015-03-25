@@ -144,6 +144,12 @@ std::shared_ptr<drake::lcmt_qp_controller_input> encodeQPInputLCM(const mxArray 
   return msg;
 }
 
+void updateIntegratorState(const VectorXd &error, double dt, const IntegratorParams &params, VectorXd &state) {
+  state = (1 - params.eta) * state + params.gains.cwiseProduct(error) * dt;
+  state = state.array().max(-params.clamps.array());
+  state = state.array().min(params.clamps.array());
+}
+
 PIDOutput wholeBodyPID(NewQPControllerData *pdata, double t, const Ref<const VectorXd> &q, const Ref<const VectorXd> &qd, const Ref<const VectorXd> &q_des, WholeBodyParams *params) {
   // Run a PID controller on the whole-body state to produce desired accelerations and reference posture
   PIDOutput out;
@@ -158,15 +164,10 @@ PIDOutput wholeBodyPID(NewQPControllerData *pdata, double t, const Ref<const Vec
   if (pdata->state.t_prev != 0) {
     dt = t - pdata->state.t_prev;
   }
-  pdata->state.q_integrator_state = (1-params->integrator.eta) * pdata->state.q_integrator_state + params->integrator.gains.cwiseProduct(q_des - q) * dt;
-  pdata->state.q_integrator_state = pdata->state.q_integrator_state.array().max(-params->integrator.clamps.array());
-  pdata->state.q_integrator_state = pdata->state.q_integrator_state.array().min(params->integrator.clamps.array());
+  updateIntegratorState(q_des - q, dt, params->integrator, pdata->state.q_integrator_state);
   out.q_ref = q_des + pdata->state.q_integrator_state;
   out.q_ref = out.q_ref.array().max((pdata->r->joint_limit_min - params->integrator.clamps).array());
   out.q_ref = out.q_ref.array().min((pdata->r->joint_limit_max + params->integrator.clamps).array());
-
-  pdata->state.q_integrator_state = pdata->state.q_integrator_state.array().max(-params->integrator.clamps.array());
-  pdata->state.q_integrator_state = pdata->state.q_integrator_state.array().min(params->integrator.clamps.array());
 
   VectorXd err_q;
   err_q.resize(nq);
@@ -269,29 +270,48 @@ void applyJointPDOverride(const std::vector<drake::lcmt_joint_pd_override> &join
   }
 }
 
-Vector6d bodyMotionPD(RigidBodyManipulator *r, DrakeRobotState &robot_state, const int body_index, const Ref<const Vector6d> &body_pose_des, const Ref<const Vector6d> &body_v_des, const Ref<const Vector6d> &body_vdot_des, const BodyMotionParams &params) {
+DesiredBodyAcceleration bodyMotionPID(NewQPControllerData *pdata, DrakeRobotState &robot_state, const int body_index, const CubicSplineResult &body_des, const BodyMotionParams &params) {
 
-  r->doKinematics(robot_state.q,false,robot_state.qd);
+  pdata->r->doKinematics(robot_state.q,false,robot_state.qd);
 
   // TODO: this must be updated to use quaternions/spatial velocity
   Vector6d body_pose;
-  MatrixXd J = MatrixXd::Zero(6,r->num_positions);
+  MatrixXd J = MatrixXd::Zero(6,pdata->r->num_positions);
   Vector4d zero = Vector4d::Zero();
   zero(3) = 1.0;
-  r->forwardKin(body_index,zero,1,body_pose);
-  r->forwardJac(body_index,zero,1,J);
-
+  pdata->r->forwardKin(body_index,zero,1,body_pose);
+  pdata->r->forwardJac(body_index,zero,1,J);
   Vector6d body_error;
-  body_error.head<3>()= body_pose_des.head<3>()-body_pose.head<3>();
-
+  body_error.head<3>()= body_des.x.head<3>()-body_pose.head<3>();
   Vector3d error_rpy,pose_rpy,des_rpy;
   pose_rpy = body_pose.tail<3>();
-  des_rpy = body_pose_des.tail<3>();
+  des_rpy = body_des.x.tail<3>();
   angleDiff(pose_rpy,des_rpy,error_rpy);
   body_error.tail(3) = error_rpy;
 
-  Vector6d body_vdot = (params.Kp.array()*body_error.array()).matrix() + (params.Kd.array()*(body_v_des-J*robot_state.qd).array()).matrix() + body_vdot_des;
-  return body_vdot;
+  double dt = 0;
+  if (pdata->state.t_prev != 0) {
+    dt = robot_state.t - pdata->state.t_prev;
+  }
+  updateIntegratorState(body_error, dt, params.integrator, pdata->state.body_motion_integrator_state[body_index]);
+
+  // Reset integrators for axes that we don't currently care about
+  for (int i=0; i < params.Kp.size(); i++) {
+    if (std::isnan(params.Kp(i))) {
+      pdata->state.body_motion_integrator_state[body_index](i) = 0;
+    }
+  }
+
+  body_error = body_error + pdata->state.body_motion_integrator_state[body_index];
+
+  Vector6d body_vdot = (params.Kp.array()*body_error.array()).matrix() + (params.Kd.array()*(body_des.xd-J*robot_state.qd).array()).matrix() + body_des.xdd;
+
+  DesiredBodyAcceleration desired_body_acceleration;
+  desired_body_acceleration.body_id0 = body_index;
+  desired_body_acceleration.body_vdot = body_vdot;
+  desired_body_acceleration.weight = params.weight;
+  desired_body_acceleration.accel_bounds = params.accel_bounds;
+  return desired_body_acceleration;
 }
 
 int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_controller_input> qp_input, DrakeRobotState &robot_state, const Ref<Matrix<bool, Dynamic, 1>> &b_contact_force, QPControllerOutput *qp_output, std::shared_ptr<QPControllerDebugData> debug) {
@@ -361,20 +381,24 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
 
   std::vector<DesiredBodyAcceleration> desired_body_accelerations;
   desired_body_accelerations.resize(qp_input->num_tracked_bodies);
-  Vector6d body_pose_des, body_v_des, body_vdot_des;
-  Vector6d body_vdot;
+  CubicSplineResult spline_result;
+  // Vector6d body_pose_des, body_v_des, body_vdot_des;
+  // Vector6d body_vdot;
 
   for (int i=0; i < qp_input->num_tracked_bodies; i++) {
     int body_id0 = qp_input->body_motion_data[i].body_id - 1;
-    double weight = params->body_motion[body_id0].weight;
-    desired_body_accelerations[i].body_id0 = body_id0;
+    // double weight = params->body_motion[body_id0].weight;
+    // desired_body_accelerations[i].body_id0 = body_id0;
     Map<Matrix<double, 6, 4,RowMajor>>coefs_rowmaj(&qp_input->body_motion_data[i].coefs[0][0]);
     Matrix<double, 6, 4> coefs = coefs_rowmaj;
     double t_spline = std::max(qp_input->body_motion_data[i].ts[0], std::min(qp_input->body_motion_data[i].ts[1], robot_state.t));
-    evaluateCubicSplineSegment(t_spline - qp_input->body_motion_data[i].ts[0], coefs, body_pose_des, body_v_des, body_vdot_des);
-    desired_body_accelerations[i].body_vdot = bodyMotionPD(pdata->r, robot_state, body_id0, body_pose_des, body_v_des, body_vdot_des, params->body_motion[body_id0]);
-    desired_body_accelerations[i].weight = weight;
-    desired_body_accelerations[i].accel_bounds = params->body_motion[body_id0].accel_bounds;
+    evaluateCubicSplineSegment(t_spline - qp_input->body_motion_data[i].ts[0], coefs, spline_result.x, spline_result.xd, spline_result.xdd);
+
+    desired_body_accelerations[i] = bodyMotionPID(pdata, robot_state, body_id0, spline_result, params->body_motion[body_id0]);
+
+    // desired_body_accelerations[i].body_vdot = bodyMotionPD(pdata->r, robot_state, body_id0, body_pose_des, body_v_des, body_vdot_des, params->body_motion[body_id0]);
+    // desired_body_accelerations[i].weight = weight;
+    // desired_body_accelerations[i].accel_bounds = params->body_motion[body_id0].accel_bounds;
     // mexPrintf("body: %d, vdot: %f %f %f %f %f %f weight: %f\n", body_id0, 
     //           desired_body_accelerations[i].body_vdot(0), 
     //           desired_body_accelerations[i].body_vdot(1), 

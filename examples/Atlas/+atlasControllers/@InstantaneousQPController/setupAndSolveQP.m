@@ -24,9 +24,6 @@ for j = 1:length(qp_input.body_motion_data)
   [body_des, body_v_des, body_vdot_des] = evalCubicSplineSegment(t_spline - qp_input.body_motion_data(j).ts(1), qp_input.body_motion_data(j).coefs);
   body_vdot = atlasControllers.bodyMotionControl(r, [q; qd], body_id,...
                   body_des, body_v_des, body_vdot_des, params.body_motion(body_id));
-  body_vdot_mex = instantaneousBodyMotionControlmex(r.getMexModelPtr(), [q; qd], body_id,...
-                  body_des, body_v_des, body_vdot_des, params.body_motion(body_id));
-  valuecheck(body_vdot, body_vdot_mex, 1e-8);
   all_bodies_vdot(j).body_id = body_id; 
   all_bodies_vdot(j).body_vdot = body_vdot;
   all_bodies_vdot(j).params = params.body_motion(body_id);

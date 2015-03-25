@@ -1,7 +1,7 @@
 function body_vdot = bodyMotionControl(robot, x, body_id, body_pose_des, body_v_des, body_vdot_des, params)
 % NOTEST
 % Run PD on a desired body trajectory to compute body accelerations, which
-% we will hand to the QP. This mirrors instantaneousBodyMotionControlmex.cpp
+% we will hand to the QP.
 % @param robot 
 % @param x current state vector
 % @param body_id the ID of the body (1-indexed)

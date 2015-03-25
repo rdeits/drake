@@ -86,6 +86,7 @@ struct RobotPropertyCache {
   PositionIndicesCache position_indices;
   BodyIdsCache body_ids;
   VectorXi actuated_indices;
+  int num_bodies;
 };
 
 struct VRefIntegratorParams {
@@ -117,9 +118,15 @@ struct WholeBodyParams {
 struct BodyMotionParams {
   VectorXd Kp;
   VectorXd Kd;
-  VectorXd Ki;
+  IntegratorParams integrator;
   Bounds accel_bounds;
   double weight;
+};
+
+struct CubicSplineResult {
+  VectorXd x;
+  VectorXd xd;
+  VectorXd xdd;
 };
 
 struct AtlasHardwareGains {
@@ -241,6 +248,6 @@ std::vector<SupportStateElement> loadAvailableSupports(std::shared_ptr<drake::lc
 
 int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_controller_input> qp_input, DrakeRobotState &robot_state, const Ref<Matrix<bool, Dynamic, 1>> &b_contact_force, QPControllerOutput *qp_output, std::shared_ptr<QPControllerDebugData> debug);
 
-Vector6d bodyMotionPD(RigidBodyManipulator *r, DrakeRobotState &robot_state, const int body_index, const Ref<const Vector6d> &body_pose_des, const Ref<const Vector6d> &body_v_des, const Ref<const Vector6d> &body_vdot_des, const BodyMotionParams &params);
+DesiredBodyAcceleration bodyMotionPID(NewQPControllerData &pdata, DrakeRobotState &robot_state, const int body_index, const CubicSplineResult &body_des, const BodyMotionParams &params);
 
 #endif

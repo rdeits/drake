@@ -76,7 +76,7 @@ drakeControlUtilEXPORT int contactConstraintsBV(RigidBodyManipulator *r, int nc,
 drakeControlUtilEXPORT MatrixXd individualSupportCOPs(RigidBodyManipulator* r, const std::vector<SupportStateElement>& active_supports, const MatrixXd& normals, const MatrixXd& B, const VectorXd& beta);
 drakeControlUtilEXPORT void sizecheck(const mxArray* mat, int M, int N);
 
-drakeControlUtilEXPORT void evaluateCubicSplineSegment(double t, const Ref<const Matrix<double, 6, 4>> &coefs, Vector6d &y, Vector6d &ydot, Vector6d &yddot);
+drakeControlUtilEXPORT void evaluateCubicSplineSegment(double t, const Ref<const Matrix<double, Dynamic, 4>> &coefs, VectorXd &y, VectorXd &ydot, VectorXd &yddot);
 
 struct RobotJointIndexMap {
   VectorXi drake_to_robot;

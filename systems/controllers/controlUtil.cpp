@@ -408,7 +408,7 @@ void sizecheck(const mxArray* mat, int M, int N) {
   return;
 }
 
-void evaluateCubicSplineSegment(double t, const Ref<const Matrix<double, 6, 4>> &coefs, Vector6d &y, Vector6d &ydot, Vector6d &yddot) {
+void evaluateCubicSplineSegment(double t, const Ref<const Matrix<double, Dynamic, 4>> &coefs, VectorXd &y, VectorXd &ydot, VectorXd &yddot) {
   // evaluate a cubic spline with coefficients coef and starting time 0 at time t
   y = coefs.col(0)*pow(t, 3) + coefs.col(1)*pow(t, 2) + coefs.col(2)*t + coefs.col(3);
   ydot = 3*coefs.col(0)*pow(t,2) + 2*coefs.col(1)*t + coefs.col(2);
