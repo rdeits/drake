@@ -93,6 +93,7 @@ std::shared_ptr<drake::lcmt_qp_controller_input> encodeQPInputLCM(const mxArray 
       const mwSize* dim = mxGetDimensions(coefs);
       if (dim[0] != 6 || dim[1] != 1 || dim[2] != 4) mexErrMsgTxt("coefs should be size 6x4");
       matlabToCArrayOfArrays<6, 4>(body_motion_data, i, "coefs", &msg->body_motion_data[i].coefs[0][0]);
+      msg->body_motion_data[i].in_floating_base_nullspace = mxGetScalar(myGetField(body_motion_data, i,"in_floating_base_nullspace")) > 0.5;
     }
   }
 
@@ -549,7 +550,10 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
       if (!inSupport(active_supports,desired_body_accelerations[i].body_id0)) {
         pdata->r->forwardJac(desired_body_accelerations[i].body_id0,orig,1,Jb);
         pdata->r->forwardJacDot(desired_body_accelerations[i].body_id0,orig,1,Jbdot);
-
+        if (qp_input->body_motion_data[i].in_floating_base_nullspace) {
+          Jb.block(0,0,6,6) = MatrixXd::Zero(6,6);
+          Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+        }
         for (int j=0; j<6; j++) {
           if (!std::isnan(desired_body_accelerations[i].body_vdot(j))) {
             Aeq.block(equality_ind,0,1,nq) = Jb.row(j);
@@ -586,6 +590,10 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
   for (int i=0; i<desired_body_accelerations.size(); i++) {
     pdata->r->forwardJac(desired_body_accelerations[i].body_id0,orig,1,Jb);
     pdata->r->forwardJacDot(desired_body_accelerations[i].body_id0,orig,1,Jbdot);
+    if (qp_input->body_motion_data[i].in_floating_base_nullspace) {
+      Jb.block(0,0,6,6) = MatrixXd::Zero(6,6);
+      Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+    }
     Ain.block(constraint_start_index,0,6,pdata->r->num_positions) = Jb;
     bin.segment(constraint_start_index,6) = -Jbdot*robot_state.qd + desired_body_accelerations[i].accel_bounds.max;
     constraint_start_index += 6;
@@ -708,7 +716,10 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
         if (!inSupport(active_supports,desired_body_accelerations[i].body_id0)) {
           pdata->r->forwardJac(desired_body_accelerations[i].body_id0,orig,1,Jb);
           pdata->r->forwardJacDot(desired_body_accelerations[i].body_id0,orig,1,Jbdot);
-
+          if (qp_input->body_motion_data[i].in_floating_base_nullspace) {
+            Jb.block(0,0,6,6) = MatrixXd::Zero(6,6);
+            Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+          }
           for (int j=0; j<6; j++) {
             if (!std::isnan(desired_body_accelerations[i].body_vdot[j])) {
               pdata->Hqp += desired_body_accelerations[i].weight*(Jb.row(j)).transpose()*Jb.row(j);
