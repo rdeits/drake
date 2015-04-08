@@ -1,74 +1,52 @@
 classdef BodyMotionData
   properties
-    ts;
-    coefs;
-    body_id;
-    toe_off_allowed;
-    in_floating_base_nullspace;
-    control_pose_when_in_contact;
+    ts = [0, inf];
+    coefs = zeros(6, 1, 4);
+    body_id = [];
+    toe_off_allowed = false;
+    in_floating_base_nullspace = false;
+    control_pose_when_in_contact = false;
   end
 
   methods
-    function obj = BodyMotionData(body_id, ts)
-      obj.ts = ts;
-      obj.body_id = body_id;
-      obj.toe_off_allowed = false(1, numel(ts));
-      obj.in_floating_base_nullspace = false(1, numel(ts));
-      obj.control_pose_when_in_contact = false(1, numel(ts));
-      obj.coefs = zeros(6, numel(ts), 4);
-    end
-
-    function t_ind = findTInd(obj, t)
-      if t < obj.ts(1)
-        t_ind = 1;
-      elseif t >= obj.ts(end)
-        t_ind = length(obj.ts) - 1;
-      else
-        t_ind = find(obj.ts <= t, 1, 'last');
-      end
+    function obj = BodyMotionData()
     end
 
     function [x, xd, xdd] = eval(obj, t)
-      t_ind = obj.findTInd(t);
-      [x, xd, xdd] = obj.evalAtInd(t_ind, t);
+      t_rel = t - obj.ts(1);
+      x = obj.coefs(:,1,1)*t_rel^3 + obj.coefs(:,1,2)*t_rel^2 + obj.coefs(:,1,3)*t_rel + obj.coefs(:,1,4);
+      xd = 3*obj.coefs(:,1,1)*t_rel^2 + 2*obj.coefs(:,1,2)*t_rel + obj.coefs(:,1,3);
+      xdd = 6*obj.coefs(:,1,1)*t_rel + 2*obj.coefs(:,1,2);
     end
 
-    function [x, xd, xdd] = evalAtInd(obj, t_ind, t)
-      t_rel = t - obj.ts(t_ind);
-      x = obj.coefs(:,t_ind,1)*t_rel^3 + obj.coefs(:,t_ind,2)*t_rel^2 + obj.coefs(:,t_ind,3)*t_rel + obj.coefs(:,t_ind,4);
-      xd = 3*obj.coefs(:,t_ind,1)*t_rel^2 + 2*obj.coefs(:,t_ind,2)*t_rel + obj.coefs(:,t_ind,3);
-      xdd = 6*obj.coefs(:,t_ind,1)*t_rel + 2*obj.coefs(:,t_ind,2);
+    function obj = setTs(obj, ts)
+      % assert(all(size(ts) == [1,2]), 'wrong size');
+      obj.ts = ts;
     end
 
-    function body_motion_slice = sliceAtTime(obj, t)
-      body_motion_slice = obj.slice(obj.findTInd(t));
+    function obj = setCoefs(obj, coefs)
+      % assert(all(size(coefs) == [6,1,4]), 'wrong size');
+      obj.coefs = coefs;
     end
 
-    function body_motion_slice = slice(obj, t_ind)
-      slice_t_inds = min([t_ind, t_ind+1], [length(obj.ts), length(obj.ts)]);
-      slice_t_inds = max(slice_t_inds, [1, 1]);
-      body_motion_slice = BodyMotionData(obj.body_id, obj.ts(slice_t_inds));
-      body_motion_slice.coefs = obj.coefs(:,t_ind,:);
-      body_motion_slice.toe_off_allowed = obj.toe_off_allowed(t_ind);
-      body_motion_slice.in_floating_base_nullspace = obj.in_floating_base_nullspace(t_ind);
-      body_motion_slice.control_pose_when_in_contact = obj.control_pose_when_in_contact(t_ind);
-    end
-  end
-
-  methods(Static)
-    function obj = from_body_poses(body_id, ts, poses)
-      obj = BodyMotionData(body_id, ts);
-      pp = pchip(ts, poses);
-      [~, obj.coefs, l, k, d] = unmkpp(pp);
-      obj.coefs = reshape(obj.coefs, [d, l, k]);
+    function obj = setBodyId(obj, body_id)
+      % assert(numel(body_id) == 1, 'wrong size');
+      obj.body_id = body_id;
     end
 
-    function obj = from_body_poses_and_velocities(body_id, ts, poses, dposes)
-      obj = BodyMotionData(body_id, ts);
+    function obj = setToeOffAllowed(obj, toe_off_allowed)
+      % assert(numel(toe_off_allowed) == 1, 'wrong size');
+      obj.toe_off_allowed = logical(toe_off_allowed);
+    end
 
-      pp = pchipDeriv(ts, poses, dposes);
-      [~, obj.coefs, l, k, d] = unmkpp(pp);
-      obj.coefs = reshape(obj.coefs, [d, l, k]);
+    function obj = setInNullspace(obj, in_floating_base_nullspace)
+      % assert(numel(in_floating_base_nullspace) == 1, 'wrong size');
+      obj.in_floating_base_nullspace = logical(in_floating_base_nullspace);
+    end
+
+    function obj = setControlInContact(obj, control_pose_when_in_contact)
+      % assert(numel(control_pose_when_in_contact) == 1, 'wrong size');
+      obj.control_pose_when_in_contact = logical(control_pose_when_in_contact);
     end
   end
 end

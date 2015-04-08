@@ -5,7 +5,7 @@ if nargin < 6
 end
 options = applyDefaults(options, struct('pelvis_height_above_sole', obj.default_walking_params.pelvis_height_above_foot_sole, 'debug', true));
 
-body_motions = BodyMotionData.empty();
+body_motions = BodyMotionDataList.empty();
 % link_constraints = struct('link_ndx',{}, 'pt', {}, 'ts', {}, 'poses', {}, 'dposes', {}, 'contact_break_indices', {}, 'coefs', {}, 'toe_off_allowed', {}, 'in_floating_base_nullspace', {});
 
 if options.debug
@@ -38,18 +38,18 @@ for f = {'right', 'left'}
   ts = [foot_origin_knots.t];
 
   if size(foot_states, 1) == 6
-    body_motions(end+1) = BodyMotionData.from_body_poses(body_ind, ts, foot_states);
+    body_motions(end+1) = BodyMotionDataList.from_body_poses(body_ind, ts, foot_states);
     % foot_pp.(foot) = pchip(ts, foot_poses);
     % foot_dposes = ppval(fnder(foot_pp.(foot), 1), ts);
   elseif size(foot_states, 1) == 12
-    body_motions(end+1) = BodyMotionData.from_body_poses_and_velocities(body_ind, ts, foot_states(1:6,:), foot_states(7:12,:));
+    body_motions(end+1) = BodyMotionDataList.from_body_poses_and_velocities(body_ind, ts, foot_states(1:6,:), foot_states(7:12,:));
     % foot_dposes = foot_states(7:12,:);
     % foot_pp.(foot) = pchipDeriv(ts, foot_poses, foot_dposes);
   end
-  body_motions(end).in_floating_base_nullspace = true(1, numel(ts));
+  body_motions(end) = body_motions(end).setInNullspace(true);
 
   if options.debug
-    foot_pp.(foot) = mkpp(body_motions(end).ts, body_motions(end).coefs, 6);
+    foot_pp.(foot) = body_motions(end).getPP();
     tsample = linspace(ts(1), ts(end), 200);
     xs = ppval(foot_pp.(foot), tsample);
     foot_deriv_pp = fnder(foot_pp.(foot));
@@ -88,7 +88,7 @@ for f = {'right', 'left'}
   % coefs = reshape(coefs, [d, l, k]);
   % assert(k == 4, 'expected a piecewise cubic polynomial');
   toe_off_allowed = [foot_origin_knots.toe_off_allowed];
-  body_motions(end).toe_off_allowed = [toe_off_allowed.(foot)];
+  body_motions(end) = body_motions(end).setToeOffAllowed([toe_off_allowed.(foot)]);
   % link_constraints(end+1) = struct('link_ndx', body_ind, 'pt', [0;0;0], 'ts', ts, 'poses', foot_poses, 'dposes', foot_dposes, 'contact_break_indices', find([foot_origin_knots.is_liftoff]), 'coefs', coefs, 'toe_off_allowed', [toe_off_allowed.(foot)], 'in_floating_base_nullspace', true);
 end
 
@@ -186,7 +186,7 @@ pelvis_poses = [nan(2, size(rpos, 2));
                 unwrap(angleAverage(rpos(6,:)', lpos(6,:)')')];
 pp = foh(pelvis_ts, pelvis_poses);
 pelvis_dposes = ppval(fnder(pp, 1), pelvis_ts);
-body_motions(end+1) = BodyMotionData.from_body_poses_and_velocities(pelvis_body, pelvis_ts, pelvis_poses, pelvis_dposes);
+body_motions(end+1) = BodyMotionDataList.from_body_poses_and_velocities(pelvis_body, pelvis_ts, pelvis_poses, pelvis_dposes);
 
 % coefs = cat(3, zeros(6, size(coefs, 2), 2), coefs);
 
