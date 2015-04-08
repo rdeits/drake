@@ -192,6 +192,7 @@ struct DesiredBodyAcceleration {
   Vector6d body_vdot;
   double weight;
   Bounds accel_bounds;
+  bool control_pose_when_in_contact;
 };
 
 struct QPControllerOutput {
