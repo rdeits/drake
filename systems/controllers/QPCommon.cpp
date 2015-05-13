@@ -665,7 +665,7 @@ int setupAndSolveQP(NewQPControllerData *pdata, std::shared_ptr<drake::lcmt_qp_c
       if (desired_body_accelerations[i].weight > 0) {
         int body_id0 = pdata->r->parseBodyOrFrameID(desired_body_accelerations[i].body_or_frame_id0,(Matrix4d*)nullptr);
         if (desired_body_accelerations[i].control_pose_when_in_contact || !inSupport(active_supports,body_id0)) {
-          if (inSupport(active_supports, bodyid0)) {
+          if (inSupport(active_supports, body_id0)) {
             // If we're in support and still trying to control this body, then
             // only control its orientation. Any attempt to control its
             // position will just end up fighting the controller's desired
