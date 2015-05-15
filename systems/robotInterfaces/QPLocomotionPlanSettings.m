@@ -228,7 +228,7 @@ classdef QPLocomotionPlanSettings
       obj.zmp_data.D = -LIP_height / obj.g * eye(2);
       pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
       obj.body_motions = [foot_motion_data, pelvis_motion_data];
-
+ 
       obj.duration = obj.support_times(end)-obj.support_times(1)-0.001;
       if isa(obj.V.S, 'ConstantTrajectory')
         obj.V.S = fasteval(obj.V.S, 0);
