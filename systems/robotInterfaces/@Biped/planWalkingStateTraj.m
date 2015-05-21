@@ -62,7 +62,11 @@ for i=1:length(ts)
           obj,body_ind, [0;0;0],xyz, xyz),...
           constructRigidBodyConstraint(RigidBodyConstraint.WorldQuatConstraintType,true,obj,body_ind,quat,0.01)}];
     end
-    kc_com = constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType,true,obj.getMexModelPtr,[walking_plan_data.comtraj.eval(t);nan],[walking_plan_data.comtraj.eval(t);nan]);
+    com = walking_plan_data.comtraj.eval(t);
+    if numel(com) == 2
+      com(3) = nan;
+    end
+    kc_com = constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType,true,obj.getMexModelPtr,com,com);
     q(:,i) = inverseKin(obj,q(:,i-1),qstar,ankle_joint_cnstr,kc_com,ik_args{:},ikoptions);
 
   else
