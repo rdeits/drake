@@ -43,6 +43,7 @@ endif()
 set(lcm_dependencies gtk)
 set(libbot_dependencies lcm)
 set(director_dependencies lcm libbot)
+set(iris_dependencies eigen mosek)
 set(drake_dependencies cmake eigen lcm libbot bullet octomap snopt gurobi)
 
 # download information, in alphabetical order
@@ -52,8 +53,8 @@ set(bertini_GIT_REPOSITORY https://github.com/RobotLocomotion/bertini.git)
 set(bertini_GIT_TAG 3ae3e3ad3534acb4b6f7a4c3c22728b493beaa80)
 set(bullet_GIT_REPOSITORY https://github.com/RobotLocomotion/bullet-pod.git)
 set(bullet_GIT_TAG 6db7ae5e29f8b35ffcea384c53caa4bddcc6f986)
-set(cmake_GIT_REPOSITORY https://github.com/rdeits/cmake.git)
-set(cmake_GIT_TAG ac44f702e9a3db4834cd39d095ee906f29876dfc)
+set(cmake_GIT_REPOSITORY https://github.com/RobotLocomotion/cmake.git)
+set(cmake_GIT_TAG cdf6fb7942d1e4b222f6114ef22873d313f60958)
 set(cmake_GIT_CLONE_DIR "${PROJECT_SOURCE_DIR}/drake/cmake")
 set(cmake_NO_BUILD TRUE)
 set(director_GIT_REPOSITORY https://github.com/RobotLocomotion/director.git)
@@ -68,13 +69,14 @@ set(gloptipoly_GIT_TAG a3547a6811bf76c4e18f00b6bcbc187c6a7fd3d8)
 set(gurobi_GIT_REPOSITORY https://github.com/RobotLocomotion/gurobi.git)
 set(gurobi_GIT_TAG beb0a84a1bcca1eb81a1b87d9fa140f2134d97e9)
 set(iris_GIT_REPOSITORY https://github.com/rdeits/iris-distro.git)
-set(iris_GIT_TAG 13468e0ea38e72ffae030adaa31e3015ea5f3ce0)
+set(iris_GIT_TAG 3ea968e1ca8d19f11198d165bcc9d8b0ab919d51)
+set(iris_ADDITIONAL_BUILD_ARGS PATCH_COMMAND make configure-cdd-only)
 set(lcm_GIT_REPOSITORY https://github.com/RobotLocomotion/lcm-pod.git)
-set(lcm_GIT_TAG f072e9a54ae168503de8f9b96a70205d56ff5788) # cmake branch 
+set(lcm_GIT_TAG 31e9a3e2dd056cac749fc2879e841434181180ad) # cmake branch 
 set(libbot_GIT_REPOSITORY https://github.com/RobotLocomotion/libbot.git)
 set(libbot_GIT_TAG c8c251cf2fe0954e5c4954a3e7c1e7a43a882492)
 set(mosek_GIT_REPOSITORY https://github.com/RobotLocomotion/mosek.git)
-set(mosek_GIT_TAG a72594c4a7c8c5c026fd291148bcac76146634c2)
+set(mosek_GIT_TAG 8e93c8ad6e8de0c1401b8e39d187370a3a0bd2dc)
 set(octomap_GIT_REPOSITORY https://github.com/RobotLocomotion/octomap-pod.git)
 set(octomap_GIT_TAG 00b28215d19580f9e964bc5d126ce55a9253671a)
 set(sedumi_GIT_REPOSITORY https://github.com/RobotLocomotion/sedumi.git)
@@ -102,7 +104,7 @@ endif()
 # process optional projects
 # note: keep drake in this loop in case externals depend on drake (e.g. the director might in the near future)
 set(EXTERNAL_PROJECTS)
-foreach(proj IN ITEMS cmake eigen gtk lcm libbot bullet iris spotless director octomap snopt gurobi mosek yalmip gloptipoly bertini sedumi avl xfoil drake)
+foreach(proj IN ITEMS cmake eigen gtk lcm libbot bullet spotless director octomap snopt gurobi mosek iris yalmip gloptipoly bertini sedumi avl xfoil drake)
 	string(TOUPPER ${proj} proj_upper)
 	if (${proj} STREQUAL "drake" OR ${proj} STREQUAL "cmake" OR WITH_${proj_upper} OR WITH_ALL_SUPPORTED_EXTERNALS)
 		list(APPEND EXTERNAL_PROJECTS ${proj})
@@ -142,6 +144,8 @@ endif()
 #endif()
 
 
+
+set(EXTERNAL_SOURCE_DIRS)
 foreach (proj ${EXTERNAL_PROJECTS})
 	set(deps)
 	foreach(dep ${${proj}_dependencies})
@@ -161,6 +165,7 @@ foreach (proj ${EXTERNAL_PROJECTS})
 		if (NOT ${proj}_NO_BUILD)
 			set(${proj}_BUILD_COMMAND ${PODS_MAKE_COMMAND} BUILD_PREFIX=${CMAKE_INSTALL_PREFIX} BUILD_TYPE=${CMAKE_BUILD_TYPE})
 		endif()
+		set(EXTERNAL_SOURCE_DIRS ${EXTERNAL_SOURCE_DIRS} ${${proj}_SOURCE_DIR} "\n")
 
 		message(STATUS "Preparing to build ${proj} with dependencies: ${deps}")
 
@@ -199,6 +204,7 @@ foreach (proj ${EXTERNAL_PROJECTS})
 			BUILD_COMMAND "${${proj}_BUILD_COMMAND}"
 			INSTALL_COMMAND ""
 			DEPENDS download-${proj} ${deps}
+			${${proj}_ADDITIONAL_BUILD_ARGS}
 	#		BUILD_ALWAYS 1
 			)
 	else()
@@ -213,6 +219,7 @@ foreach (proj ${EXTERNAL_PROJECTS})
 			BUILD_COMMAND ${PODS_MAKE_COMMAND} BUILD_PREFIX=${CMAKE_INSTALL_PREFIX} BUILD_TYPE=${CMAKE_BUILD_TYPE}
 			INSTALL_COMMAND ""
 			DEPENDS ${deps}
+			${${proj}_ADDITIONAL_BUILD_ARGS}
 	#		BUILD_ALWAYS 1
 			)
 	endif(NOT ${proj} STREQUAL "drake")
@@ -226,6 +233,7 @@ foreach (proj ${EXTERNAL_PROJECTS})
  		ALWAYS 1)
 
 endforeach()
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/drake_external_source_dirs.txt ${EXTERNAL_SOURCE_DIRS})
 
 
 # todo: add a custom target for release_filelist
