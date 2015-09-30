@@ -1,0 +1,34 @@
+function interactiveSOCP()
+  f = figure(16);
+  clf();
+  set(f, 'doublebuffer', 'on');
+  ax = axes('Parent',f,'position',[0.13 0.39  0.77 0.54]);
+  theta1 = 0;
+  theta2 = 0;
+  mu = 1;
+
+  function setupAndSolve(theta1, theta2, mu)
+    platforms = contactForceProblem.generatePlatforms3d(theta1, theta2, mu);
+    x0 = [0; 0; 0];
+    F = contactForceProblem.runSOCP(platforms, x0);
+    contactForceProblem.draw3d(platforms, F, x0);
+  end
+
+  function slider_callback (es, ed)
+    theta1 = get(theta1_control, 'Value');
+    theta2 = get(theta2_control, 'Value');
+    mu = get(mu_control, 'Value');
+    setupAndSolve(theta1, theta2, mu);
+  end
+  theta1_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,90,419,23],...
+                             'value', theta1, 'min', -pi, 'max', pi);
+  addlistener(theta1_control, 'ContinuousValueChange', @slider_callback);
+  theta2_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,60,419,23],...
+                             'value', theta1, 'min', -pi, 'max', pi);
+  addlistener(theta2_control, 'ContinuousValueChange', @slider_callback);
+  mu_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,30,419,23],...
+                             'value', mu, 'min', 0, 'max', 2);
+  addlistener(mu_control, 'ContinuousValueChange', @slider_callback);
+
+  setupAndSolve(theta1, theta2, mu)
+end
