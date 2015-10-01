@@ -1,5 +1,5 @@
 function draw2d(platforms, F, x0)
-  platform_width = 0.3
+  platform_width = 0.3;
 
   cla();
   hold on
