@@ -22,12 +22,15 @@ function interactiveSOCP()
   end
   theta1_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,90,419,23],...
                              'value', theta1, 'min', -pi, 'max', pi);
+  uicontrol('Parent', f, 'Style', 'text', 'String', 'theta1', 'Position', [505, 90, 60, 23]);
   addlistener(theta1_control, 'ContinuousValueChange', @slider_callback);
   theta2_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,60,419,23],...
                              'value', theta1, 'min', -pi, 'max', pi);
+  uicontrol('Parent', f, 'Style', 'text', 'String', 'theta2', 'Position', [505, 60, 60, 23]);
   addlistener(theta2_control, 'ContinuousValueChange', @slider_callback);
   mu_control = uicontrol('Parent', f, 'Style', 'slider', 'Position', [81,30,419,23],...
                              'value', mu, 'min', 0, 'max', 2);
+  uicontrol('Parent', f, 'Style', 'text', 'String', 'mu', 'Position', [505, 30, 60, 23]);
   addlistener(mu_control, 'ContinuousValueChange', @slider_callback);
 
   setupAndSolve(theta1, theta2, mu)
