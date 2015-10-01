@@ -21,7 +21,8 @@ function draw2d(platforms, F, x0)
 
   plot(x0(1), x0(2), 'bo', 'MarkerSize', 10, 'MarkerFaceColor', 'b')
 
+  axis equal
   xlim([-1.5, 1.5])
   ylim([-1.25, 1.25])
-  axis equal
+  drawnow()
 end
