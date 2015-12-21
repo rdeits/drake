@@ -9,7 +9,7 @@
   #define SWIG_FILE_WITH_INIT
   #include <Python.h>
 #endif
-#include "RigidBodyManipulator.h"
+#include "RigidBodyTree.h"
 %}
 
 %include <typemaps.i>
@@ -30,8 +30,8 @@
 %include "KinematicsCache.h"
 %template(KinematicsCache_d) KinematicsCache<double>;
 
-%include "RigidBodyManipulator.h"
-%extend RigidBodyManipulator {
+%include "RigidBodyTree.h"
+%extend RigidBodyTree {
   KinematicsCache<double> doKinematics(const Eigen::MatrixBase<Eigen::VectorXd>& q, const Eigen::MatrixBase<Eigen::VectorXd>& v, int gradient_order = 0, bool compute_JdotV = true) {
     return $self->doKinematics<Eigen::VectorXd, Eigen::VectorXd>(q, v, gradient_order, compute_JdotV);
   }
