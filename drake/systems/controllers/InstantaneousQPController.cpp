@@ -185,6 +185,7 @@ PIDOutput InstantaneousQPController::wholeBodyPID(
   out.qddot_des = params.Kp.cwiseProduct(err_q) - params.Kd.cwiseProduct(qd);
   out.qddot_des = out.qddot_des.array().max(params.qdd_bounds.min.array());
   out.qddot_des = out.qddot_des.array().min(params.qdd_bounds.max.array());
+  std::cout << "qddot_des: " << out.qddot_des.transpose() << std::endl;
   return out;
 }
 

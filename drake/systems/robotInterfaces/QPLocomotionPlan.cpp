@@ -353,10 +353,6 @@ drake::lcmt_qp_controller_input QPLocomotionPlan::createQPControllerInput(
     }
   }
 
-  if (!pelvis_has_tracking)
-    throw runtime_error(
-        "Expecting a motion_motion_data element for the pelvis");
-
   // set support data
   for (auto it = support_state.begin(); it != support_state.end(); ++it) {
     qp_input.support_data.push_back(
