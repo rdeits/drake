@@ -95,7 +95,7 @@ classdef RigidBodyMesh < RigidBodyGeometry
     
     function geometry = serializeToLCM(obj)
       obj = convertToOBJ(obj);
-      geometry = drake.lcmt_viewer_geometry_data();
+      geometry = bot_core.viewer_geometry_data_t();
       geometry.type = geometry.MESH;
       geometry.string_data = obj.filename;
       geometry.num_float_data = length(obj.scale);

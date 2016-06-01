@@ -49,7 +49,7 @@ classdef RigidBodyCapsule < RigidBodyGeometry
     end
 
     function geometry = serializeToLCM(obj)
-      geometry = drake.lcmt_viewer_geometry_data();
+      geometry = bot_core.viewer_geometry_data_t();
       geometry.type = geometry.CAPSULE;
       geometry.string_data = '';
       geometry.num_float_data = 2;

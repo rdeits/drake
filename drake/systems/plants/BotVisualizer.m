@@ -53,7 +53,7 @@ classdef BotVisualizer < RigidBodyVisualizer
             
       obj = updateManipulator(obj,manip);
       
-      obj.draw_msg = drake.lcmt_viewer_draw();
+      obj.draw_msg = bot_core.viewer_draw_t();
       nb = getNumBodies(manip);
       obj.draw_msg.num_links = nb;
       obj.draw_msg.link_name = {manip.body.linkname};
@@ -68,12 +68,12 @@ classdef BotVisualizer < RigidBodyVisualizer
       obj = updateManipulator@RigidBodyVisualizer(obj,manip);
       
       lc = lcm.lcm.LCM.getSingleton();
-      vr = drake.lcmt_viewer_load_robot();
+      vr = drake.viewer_load_robot_t();
       vr.num_links = getNumBodies(manip);
-      vr.link = javaArray('drake.lcmt_viewer_link_data',vr.num_links);
+      vr.link = javaArray('bot_core.viewer_link_data_t',vr.num_links);
       for i=1:vr.num_links
         b = getBody(manip,i);
-        link = drake.lcmt_viewer_link_data();
+        link = bot_core.viewer_link_data_t();
         link.name = b.linkname;
         link.robot_num = b.robotnum;
         if obj.use_collision_geometry
@@ -82,7 +82,7 @@ classdef BotVisualizer < RigidBodyVisualizer
           link.num_geom = length(b.visual_geometry);
         end
         if (link.num_geom>0)
-          link.geom = javaArray('drake.lcmt_viewer_geometry_data',link.num_geom);
+          link.geom = javaArray('bot_core.viewer_geometry_data_t',link.num_geom);
         end
         for j=1:link.num_geom
           if obj.use_collision_geometry
@@ -103,7 +103,7 @@ classdef BotVisualizer < RigidBodyVisualizer
         if isempty(ack)
           error('Drake:BotVisualizer:LoadRobotFailed','Did not receive ack from viewer');
         else
-          msg = drake.lcmt_viewer_command(ack.data);
+          msg = bot_core.viewer_command_t(ack.data);
           %        if ~strcmp(vr.command_data,msg.command_data)
           %          error('Drake:BotVisualizer:LoadURDFFailed','ack from viewer contained different data');
           %        end
@@ -211,7 +211,7 @@ classdef BotVisualizer < RigidBodyVisualizer
     
     function obj = loadRenderer(obj,renderer_dynobj_path)
       % dynamically load a libbot renderer
-      vc = drake.lcmt_viewer_command();
+      vc = bot_core.viewer_command_t();
       vc.command_type = vc.LOAD_RENDERER;
       vc.command_data = renderer_dynobj_path;
       lc = lcm.lcm.LCM.getSingleton();
@@ -235,7 +235,7 @@ classdef BotVisualizer < RigidBodyVisualizer
       [path,name,ext] = fileparts(filename);
       if isempty(ext), ext = '.mp4'; end  % set a default
       
-      vc = drake.lcmt_viewer_command();
+      vc = bot_core.viewer_command_t();
       vc.command_type = vc.START_RECORDING;
       vc.command_data = '';
       lc = lcm.lcm.LCM.getSingleton();
@@ -252,7 +252,7 @@ classdef BotVisualizer < RigidBodyVisualizer
         if isempty(msg) % wait for ack
           error('Drake:BotVisualizer:RecordingFailed','Never received recording OK ack from viewer');
         end
-        ppmsgz_filename=char(drake.lcmt_viewer_command(msg.data).command_data);
+        ppmsgz_filename=char(bot_core.viewer_command_t(msg.data).command_data);
         % todo: make this more robust (so I don't get a different status
         % message)
       end

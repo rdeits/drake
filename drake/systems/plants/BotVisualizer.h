@@ -6,8 +6,8 @@
 #include "drake/systems/plants/RigidBodyTree.h"
 
 // these could all go in the cpp file:
-#include "lcmtypes/drake/lcmt_viewer_load_robot.hpp"
-#include "lcmtypes/drake/lcmt_viewer_draw.hpp"
+#include "lcmtypes/bot_core/viewer_load_robot_t.hpp"
+#include "lcmtypes/bot_core/viewer_draw_t.hpp"
 #include "drake/util/drakeGeometryUtil.h"
 
 namespace Drake {
@@ -60,15 +60,15 @@ class BotVisualizer {
   }
 
   void publishLoadRobot() const {
-    drake::lcmt_viewer_load_robot vr;
+    bot_core::viewer_load_robot_t vr;
     vr.num_links = tree->bodies.size();
     for (const auto &body : tree->bodies) {
-      drake::lcmt_viewer_link_data link;
+      bot_core::viewer_link_data_t link;
       link.name = body->name_;
       link.robot_num = body->robotnum;
       link.num_geom = body->visual_elements.size();
       for (const auto &v : body->visual_elements) {
-        drake::lcmt_viewer_geometry_data gdata;
+        bot_core::viewer_geometry_data_t gdata;
 
         const DrakeShapes::Geometry &geometry = v.getGeometry();
 
@@ -179,7 +179,7 @@ class BotVisualizer {
   mutable std::shared_ptr<RigidBodyTree>
       tree;  // todo: remove mutable tag after RBM cleanup
   std::shared_ptr<lcm::LCM> lcm;
-  mutable drake::lcmt_viewer_draw draw_msg;
+  mutable bot_core::viewer_draw_t draw_msg;
 };
 
 }  // end namespace Drake

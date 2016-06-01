@@ -3,7 +3,7 @@ classdef RigidBodyGeometry < RigidBodyElement
   methods % to be implemented in derived classes
     pts = getPoints(obj);             % returned in body coordinates
     pts = getBoundingBoxPoints(obj);  % returned in body coordinates
-    lcmt_viewer_geometry_data = serializeToLCM(obj);
+    viewer_geometry_data_t = serializeToLCM(obj);
   end
   
   methods
