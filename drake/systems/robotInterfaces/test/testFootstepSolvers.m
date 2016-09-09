@@ -1,5 +1,6 @@
 function testFootstepSolvers()
 
+
 % note: this test is known to fail with small probability
 % see https://github.com/RobotLocomotion/drake/issues/855
 
@@ -8,7 +9,7 @@ addpath(fullfile(getDrakePath, 'examples', 'Atlas'));
 options.floating = true;
 options.dt = 0.001;
 
-% rng(118)
+rng(118)
 
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints')
 warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits')
@@ -25,7 +26,7 @@ z = (rand() - 0.5) * 2 * 0.05;
 foot_orig = struct('right', [0;-0.15;z;0;0;0], 'left', [0;0.15;z;0;0;0]);
 
 safe_regions = struct('A', {}, 'b', {}, 'point', {}, 'normal', {});
-n_regions = 10;
+n_regions = 8;
 lb = [0;-.2;z];
 ub = [2;2.2;z];
 stone_scale = .3;
@@ -58,11 +59,12 @@ function test_solver(solver, h, t)
   seed_plan.footsteps(1).pos = foot_orig.right;
   seed_plan.footsteps(2).pos = foot_orig.left;
 
-  if checkDependency('yalmip')
-    use_symbolic = 2;
-  else
-    use_symbolic = 0;
-  end
+  % if checkDependency('yalmip')
+  %   use_symbolic = 2;
+  % else
+  %   use_symbolic = 0;
+  % end
+  use_symbolic = 1;
   [plan, solvertime] = solver(r, seed_plan, weights, goal_pos, use_symbolic);
 
   axes(h);
@@ -88,22 +90,25 @@ end
 
 figure(1)
 clf
-h = subplot(2, 3, 1);
-test_solver(@footstepPlanner.footstepMIQP, h, 'miqp');
-drawnow()
-h = subplot(2, 3, 2);
-test_solver(@footstepPlanner.fixedRotation, h, 'fixedRotation');
-drawnow()
-h = subplot(2, 3, 3);
-test_solver(@footstepPlanner.alternatingMIQP, h, 'alternating miqp');
-drawnow()
-h = subplot(2, 3, 4);
-test_solver(@footstepPlanner.linearUnitCircle, h, 'linear unit circle');
-drawnow()
-h = subplot(2, 3, 5);
+% h = subplot(2, 3, 1);
+% test_solver(@footstepPlanner.footstepMIQP, h, 'miqp');
+% drawnow()
+% h = subplot(2, 3, 2);
+% test_solver(@footstepPlanner.fixedRotation, h, 'fixedRotation');
+% drawnow()
+% h = subplot(2, 3, 3);
+% test_solver(@footstepPlanner.alternatingMIQP, h, 'alternating miqp');
+% drawnow()
+% h = subplot(2, 3, 4);
+% test_solver(@footstepPlanner.linearUnitCircle, h, 'linear unit circle');
+% drawnow()
+h = subplot(1, 3, 1);
 test_solver(@footstepPlanner.humanoids2014, h, 'humanoids2014');
 drawnow();
-h = subplot(2, 3, 6);
-test_solver(@footstepPlanner.dev.relaxedMISOCP, h, 'relaxedMISOCP');
+h = subplot(1, 3, 2);
+test_solver(@footstepPlanner.binaryString, h, 'binaryString');
+drawnow();
+h = subplot(1, 3, 3);
+test_solver(@footstepPlanner.binaryStringInequality, h, 'binaryStringInequality');
 drawnow();
 end

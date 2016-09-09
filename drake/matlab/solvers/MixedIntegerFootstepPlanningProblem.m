@@ -838,6 +838,145 @@ classdef MixedIntegerFootstepPlanningProblem < MixedIntegerConvexProgram
       end
     end
 
+    function obj = addTerrainRegionsBinaryStringInequality(obj, safe_regions, use_symbolic)
+      assert(use_symbolic);
+      if isempty(safe_regions)
+        safe_regions = obj.seed_plan.safe_regions;
+      end
+
+      nr = length(safe_regions)
+      num_region_vars = ceil(log2(nr))
+      obj = obj.addVariable('region_string', 'B', [num_region_vars, obj.nsteps], 0, 1);
+
+      if use_symbolic
+        assert(obj.has_symbolic);
+        region = obj.vars.region_string.symb;
+        x = obj.vars.footsteps.symb;
+        for j = 3:obj.nsteps
+          binary_string = false(num_region_vars, 1);
+          for r = 1:(2^num_region_vars)
+            if r <= length(safe_regions)
+              A = safe_regions(r).A;
+              b = safe_regions(r).b;
+              normal = safe_regions(r).normal;
+              point = safe_regions(r).point;
+              Ar_ineq = [A(:,1:2), zeros(size(A, 1), 1), A(:,3)];
+              br_ineq = b;
+              Ar_eq = [safe_regions(r).normal', 0];
+              br_eq = safe_regions(r).normal' * safe_regions(r).point;
+              A = [Ar_ineq; Ar_eq; -Ar_eq];
+              b = [br_ineq; br_eq; -br_eq];
+            else
+              A = zeros(1, size(x, 1));
+              b = -1;
+            end
+            rhs = 0;
+            for n = 1:num_region_vars
+              if binary_string(n)
+                rhs = rhs + (1 - region(n, j));
+              else
+                rhs = rhs + region(n, j);
+              end
+            end
+            M_big = 10;
+            obj.symbolic_constraints = [obj.symbolic_constraints,...
+              A * x(:,j) <= b + rhs * M_big];
+            for n = num_region_vars:-1:1
+              if binary_string(n) == 0
+                binary_string(n) = true;
+                break;
+              else
+                binary_string(n) = 0;
+              end
+            end
+          end
+          assert(~any(binary_string));
+        end
+      end
+    end
+
+
+    function obj = addTerrainRegionsBinaryString(obj, safe_regions, use_symbolic)
+      checkDependency('iris');
+      assert(use_symbolic);
+      if isempty(safe_regions)
+        safe_regions = obj.seed_plan.safe_regions;
+      end
+
+      nr = length(safe_regions)
+      num_region_vars = ceil(log2(nr))
+      obj = obj.addVariable('region_string', 'B', [num_region_vars, obj.nsteps], 0, 1);
+
+      num_region_vertices = 0;
+      safe_region_vertices = {};
+      for i = 1:length(safe_regions)
+        A = [safe_regions(i).A(:,1:2), zeros(size(safe_regions(i).A, 1), 1), safe_regions(i).A(:,3)];
+        b = safe_regions(i).b;
+        A = [A; 0, 0, 0, 1; 0, 0, 0, -1];
+        b = [b; 2*pi; 2*pi];
+        Aeq = [safe_regions(i).normal', 0];
+        beq = safe_regions(i).normal' * safe_regions(i).point;
+        safe_region_vertices{i} = iris.thirdParty.polytopes.lcon2vert(A, b, Aeq, beq)';
+        % safe_region_vertices{i}
+        num_region_vertices = num_region_vertices + size(safe_region_vertices{i}, 2);
+      end
+
+      obj = obj.addVariable('region_vertex_weights', 'C', [num_region_vertices, obj.nsteps], 0, 1);
+
+      if use_symbolic
+        assert(obj.has_symbolic);
+        region = obj.vars.region_string.symb;
+        x = obj.vars.footsteps.symb;
+        lambda = obj.vars.region_vertex_weights.symb;
+        for j = 3:obj.nsteps
+          expr = 0;
+          offset = 0;
+          for k = 1:length(safe_regions)
+            expr = expr + safe_region_vertices{k} * lambda(offset + (1:size(safe_region_vertices{k}, 2)),j);
+            offset = offset + size(safe_region_vertices{k}, 2);
+          end
+          obj.symbolic_constraints = [obj.symbolic_constraints,...
+            x(:,j) == expr,
+            sum(lambda(:,j)) == 1];
+
+          binary_string = false(num_region_vars, 1);
+          for r = 1:(2^num_region_vars)
+            if r <= length(safe_regions)
+              lambda_mask = false(num_region_vertices, 1);
+              offset = 0;
+              for m = 1:length(safe_regions)
+                if m ~= r
+                  lambda_mask(offset + (1:size(safe_region_vertices{m}, 2))) = true;
+                end
+                offset = offset + size(safe_region_vertices{m}, 2);
+              end
+            else
+              lambda_mask = true(num_region_vertices, 1);
+            end
+            rhs = 0;
+            for n = 1:num_region_vars
+              if binary_string(n)
+                rhs = rhs + (1 - region(n, j));
+              else
+                rhs = rhs + region(n, j);
+              end
+            end
+            obj.symbolic_constraints = [obj.symbolic_constraints,...
+              lambda_mask' * lambda(:,j) <= rhs];
+            for n = num_region_vars:-1:1
+              if binary_string(n) == 0
+                binary_string(n) = true;
+                break;
+              else
+                binary_string(n) = 0;
+              end
+            end
+          end
+          assert(~any(binary_string));
+        end
+      end
+    end
+
     function obj = addTerrainRegions(obj, safe_regions, use_symbolic)
       % Add regions of safe terrain and mixed-integer constraints which require that 
       % each footstep lie within one of those safe regions.
@@ -1024,17 +1163,18 @@ classdef MixedIntegerFootstepPlanningProblem < MixedIntegerConvexProgram
         obj = obj.solve();
       end
       steps = zeros(6, obj.nsteps);
+      obj.vars.footsteps.value(:,3)
       steps(obj.pose_indices, :) = obj.vars.footsteps.value;
       plan = obj.seed_plan;
       for j = 1:obj.nsteps
         plan.footsteps(j).pos = steps(:,j);
       end
 
-      for j = 1:obj.nsteps
-        region_ndx = find(obj.vars.region.value(:,j));
-        assert(length(region_ndx) == 1, 'Got no (or multiple) region assignments for this footstep. This indicates an infeasibility or bad setup in the mixed-integer program');
-        plan.region_order(j) = region_ndx;
-      end
+      % for j = 1:obj.nsteps
+      %   region_ndx = find(obj.vars.region.value(:,j));
+      %   assert(length(region_ndx) == 1, 'Got no (or multiple) region assignments for this footstep. This indicates an infeasibility or bad setup in the mixed-integer program');
+      %   plan.region_order(j) = region_ndx;
+      % end
       plan = plan.trim_duplicates();
 
     end
