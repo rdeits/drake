@@ -41,6 +41,10 @@ if(lcm_FOUND)
     drakeSystemControllers
     drakeSystemAnalysis)
 
+  add_executable(pendulum_run_swing_up_milp pendulum_run_swing_up_milp.cc)
+  target_link_libraries(pendulum_run_swing_up_milp
+          drakePendulumPlant)
+
   if(ipopt_FOUND OR NLopt_FOUND OR snopt_FOUND)
     drake_add_test(NAME pendulum_run_swing_up
       COMMAND pendulum_run_swing_up --non-realtime)
