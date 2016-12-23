@@ -36,6 +36,7 @@ if (lcm_FOUND)
   add_library_with_exports(LIB_NAME drakeRobotStateEncoder SOURCE_FILES
       robot_state_encoder.cc)
   target_link_libraries(drakeRobotStateEncoder
+      drakeGeometryUtil
       drakeLCMSystem2
       drakeLCMUtil
       drakeRigidBodyPlant
@@ -56,15 +57,25 @@ if (lcm_FOUND)
   drake_install_libraries(drakeRobotStateDecoder)
   drake_install_headers(robot_state_decoder.h)
 
-  add_executable(valkyrie_simulation valkyrie_simulation.cc)
+  add_executable(valkyrie_simulation valkyrie_simulation.cc valkyrie_constants.cc)
   target_link_libraries(valkyrie_simulation
-      drakeRigidBodyPlant
       drakeLCMSystem2
+      drakeMultibodyParsers
+      drakeRigidBodyPlant
       drakeRobotStateEncoder
       drakeSystemAnalysis
       drakeSystemFramework
+      drakeSystemPrimitives
       drakeActuatorEffortToRigidBodyPlantInputConverter
       drakeRobotCommandToDesiredEffortConverter)
+
+  add_executable(valkyrie_pd_ff_controller valkyrie_pd_ff_controller.cc valkyrie_constants.cc)
+  target_link_libraries(valkyrie_pd_ff_controller
+      drakeLCMSystem2
+      drakeMultibodyParsers
+      drakeRigidBodyPlant
+      drakeRobotStateDecoder
+      drakeSystemFramework)
 endif()
 
 if(BUILD_TESTING)
