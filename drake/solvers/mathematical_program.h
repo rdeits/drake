@@ -277,6 +277,7 @@ class MathematicalProgram {
     return NewVariables<rows, 1>(type, names);
   }
 
+#ifndef SWIG
   /**
    * Adds symmetric matrix variables to optimization program. Only the lower
    * triangular
@@ -291,6 +292,7 @@ class MathematicalProgram {
     NewVariables_impl(type, names, true, decision_variable_matrix);
     return decision_variable_matrix;
   }
+#endif
 
   /**
    * Adds continuous variables to this MathematicalProgram.

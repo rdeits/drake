@@ -49,10 +49,12 @@ class Polynomial {
   typedef std::complex<RealScalar> RootType;
   typedef Eigen::Matrix<RootType, Eigen::Dynamic, 1> RootsType;
 
+#ifndef SWIG
   template <typename Rhs, typename Lhs>
   struct Product {
     typedef decltype((Rhs)0 * (Lhs)0) type;
   };
+#endif
 
   /// An individual variable raised to an integer power; e.g. x**2.
   class Term {
