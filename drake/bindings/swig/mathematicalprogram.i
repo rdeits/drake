@@ -10,6 +10,7 @@
   #include <Python.h>
 #endif
 #include "drake/solvers/mathematical_program.h"
+using drake::VectorX;
 %}
 
 %include <typemaps.i>
@@ -39,3 +40,4 @@
 %include "drake/solvers/function.h"
 %include "drake/solvers/mathematical_program_solver_interface.h"
 %include "drake/solvers/mathematical_program.h"
+

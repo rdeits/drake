@@ -66,6 +66,7 @@ struct hash_value<symbolic::Variable> {
 };
 }  // namespace drake
 
+#ifndef SWIG
 #if !defined(DRAKE_DOXYGEN_CXX)
 namespace Eigen {
 // Eigen scalar type traits for Matrix<drake::symbolic::Variable>.
@@ -76,3 +77,4 @@ struct NumTraits<drake::symbolic::Variable>
 };
 }  // namespace Eigen
 #endif  // !defined(DRAKE_DOXYGEN_CXX)
+#endif // ndef SWIG

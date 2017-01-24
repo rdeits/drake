@@ -290,6 +290,7 @@ class MathematicalProgram {
    * @param names The names of the stacked columns of the lower triangular part
    * of the matrix.
    */
+#ifndef SWIG
   template <int rows>
   MatrixDecisionVariable<rows, rows> NewSymmetricVariables(
       VarType type, const std::array<std::string, rows*(rows + 1) / 2>& names) {
@@ -297,6 +298,7 @@ class MathematicalProgram {
     NewVariables_impl(type, names, true, decision_variable_matrix);
     return decision_variable_matrix;
   }
+#endif // ndef SWIG
 
   /**
    * Adds continuous variables to this MathematicalProgram.

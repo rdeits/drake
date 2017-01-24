@@ -19,8 +19,12 @@ using MatrixDecisionVariable =
     Eigen::Matrix<drake::symbolic::Variable, rows, cols>;
 template <int rows>
 using VectorDecisionVariable = MatrixDecisionVariable<rows, 1>;
+
+// typedef Eigen::Matrix<drake::symbolic::Variable, Eigen::Dynamic, Eigen::Dynamic> MatrixXDecisionVariable;
 using MatrixXDecisionVariable =
     MatrixDecisionVariable<Eigen::Dynamic, Eigen::Dynamic>;
+
+// typedef Eigen::Matrix<drake::symbolic::Variable, Eigen::Dynamic, 1> VectorXDecisionVariable;
 using VectorXDecisionVariable = VectorDecisionVariable<Eigen::Dynamic>;
 
 using VariableRefList = std::list<Eigen::Ref<const VectorXDecisionVariable>>;
