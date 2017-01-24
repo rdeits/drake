@@ -35,8 +35,10 @@ typedef TaylorVard<Eigen::Dynamic> TaylorVarXd;
 typedef TaylorVecd<Eigen::Dynamic, Eigen::Dynamic> TaylorVecXd;
 typedef TaylorMatd<Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic> TaylorMatXd;
 
+#ifndef SWIG
 static_assert(std::is_same<AutoDiffXd, TaylorVarXd>::value,
               "AutoDiffXd and TaylorVarXd should be two different names "
               "for the same type.");
+#endif
 
 }  // namespace drake

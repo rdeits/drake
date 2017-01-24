@@ -16,7 +16,9 @@ namespace symbolic {
 /** Represents a symbolic variable. */
 class Variable {
  public:
+#ifndef SWIG
   DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(Variable)
+#endif
 
   /** Default constructor. Constructs a dummy variable. This is needed to have
    *  Eigen::Matrix<Variable>. The objects created by the default constructor

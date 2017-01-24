@@ -167,12 +167,6 @@ drake_add_external(fcl PUBLIC CMAKE
   CMAKE_ARGS -DFCL_BUILD_TESTS=OFF
   DEPENDS ccd eigen octomap)
 
-# swig_matlab
-drake_add_external(swig_matlab PUBLIC AUTOTOOLS
-  PATCH_COMMAND ./autogen.sh
-  AUTOTOOLS_CONFIGURE_ARGS
-    --without-alllang)
-
 # textbook
 drake_add_external(textbook PUBLIC CMAKE MATLAB PYTHON
   CMAKE_ARGS -DBUILD_TESTING=${Matlab_FOUND}
@@ -306,7 +300,6 @@ drake_add_external(drake LOCAL PUBLIC CMAKE ALWAYS MATLAB PYTHON
     snopt
     spdlog
     spotless
-    swig_matlab
     swigmake
     textbook
     xfoil

@@ -58,4 +58,12 @@ if(NOT DISABLE_PYTHON)
       Eigen3::Eigen
     SWIG_INCLUDE_DIRS ${DRAKE_SWIG_FILES}/python ${DRAKE_SWIG_FILES}/common
     DESTINATION ${python_install_subdir})
+
+  # add_swig_python_module(mathematicalprogramPython mathematicalprogram.i
+  #   CPLUSPLUS
+  #   LINK_LIBRARIES
+  #     drakeIK
+  #     Eigen3::Eigen
+  #   SWIG_INCLUDE_DIRS ${DRAKE_SWIG_FILES}/python ${DRAKE_SWIG_FILES}/common
+  #   DESTINATION ${python_install_subdir})
 endif()
