@@ -18,3 +18,7 @@ install(TARGETS _pydrake_autodiffutils DESTINATION ${PYDRAKE_INSTALL_DIR})
 pybind11_add_module(_pydrake_ik pydrake_ik.cc)
 target_link_libraries(_pydrake_ik PRIVATE drakeIK Eigen3::Eigen)
 install(TARGETS _pydrake_ik DESTINATION ${PYDRAKE_INSTALL_DIR}/solvers)
+
+pybind11_add_module(_mathematicalprogram mathematicalprogram.cc)
+target_link_libraries(_mathematicalprogram PRIVATE drakeIK Eigen3::Eigen)
+install(TARGETS _mathematicalprogram DESTINATION ${PYDRAKE_INSTALL_DIR}/solvers)
