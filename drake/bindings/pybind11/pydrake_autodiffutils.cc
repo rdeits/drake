@@ -92,7 +92,7 @@ PYBIND11_PLUGIN(_pydrake_autodiffutils) {
     .def("__getitem__",
          [](const VectorXAutoDiffXd& self, size_t i) {
       return self(i);
-    })
+    }, py::return_value_policy::reference)
     .def("__setitem__",
          [](VectorXAutoDiffXd& self, size_t i, const AutoDiffXd& value) {
       self(i) = value;
@@ -119,7 +119,7 @@ PYBIND11_PLUGIN(_pydrake_autodiffutils) {
     .def("__getitem__",
          [](const Matrix3XAutoDiffXd& self, size_t i) {
       return self(i);
-    })
+    }, py::return_value_policy::reference)
     .def("__setitem__",
          [](Matrix3XAutoDiffXd& self, size_t i, const AutoDiffXd& value) {
       self(i) = value;
