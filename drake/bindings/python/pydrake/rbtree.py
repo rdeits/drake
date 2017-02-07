@@ -4,7 +4,7 @@ import numpy as np
 
 from ._pydrake_rbtree import *
 from . import autodiffutils as ad
-
+from .wrapperutils import wrap, unwrap
 
 kFixed = FloatingBaseType.kFixed
 kRollPitchYaw = FloatingBaseType.kRollPitchYaw
@@ -15,10 +15,10 @@ def _doKinematics(self, q, v=None):
     q = np.asarray(q)
 
     if isinstance(q.flat[0], ad.AutoDiffXd):
-        q = ad.wrap(ad.VectorXAutoDiffXd, q)
+        q = wrap(ad.VectorXAutoDiffXd, q)
     if v is not None:
         if isinstance(v.flat[0], ad.AutoDiffXd):
-            v = ad.wrap(ad.VectorXAutoDiffXd, v)
+            v = wrap(ad.VectorXAutoDiffXd, v)
         return self._doKinematics(q, v)
     else:
         return self._doKinematics(q)
@@ -29,7 +29,7 @@ RigidBodyTree.doKinematics = _doKinematics
 def _transformPoints(self, *args, **kwargs):
     wrapped = self._transformPoints(*args, **kwargs)
     if isinstance(wrapped, ad.Matrix3XAutoDiffXd):
-        return ad.unwrap(wrapped)
+        return unwrap(ad.AutoDiffXd, wrapped)
     else:
         return wrapped
 
@@ -39,7 +39,7 @@ RigidBodyTree.transformPoints = _transformPoints
 def _relativeTransform(self, *args, **kwargs):
     wrapped = self._relativeTransform(*args, **kwargs)
     if isinstance(wrapped, ad.Matrix44AutoDiffXd):
-        return ad.unwrap(wrapped)
+        return unwrap(ad.AutoDiffXd, wrapped)
     else:
         return wrapped
 
