@@ -106,6 +106,11 @@ class DrakeVisualizer : public LeafSystem<double> {
   void PlaybackTrajectory(
       const PiecewisePolynomial<double>& input_trajectory) const;
 
+  // Publishes a lcmt_viewer_load_robot message containing a description
+  // of what should be visualized. The message is intended to be received by the
+  // Drake Visualizer.
+  void PublishLoadRobot() const;
+
  private:
   void DoCalcOutput(const systems::Context<double>& context,
                     systems::SystemOutput<double>* output) const override {}
@@ -118,11 +123,6 @@ class DrakeVisualizer : public LeafSystem<double> {
   // within load_message_.
   static lcmt_viewer_load_robot CreateLoadMessage(
       const RigidBodyTree<double>& tree);
-
-  // Publishes a lcmt_viewer_load_robot message containing a description
-  // of what should be visualized. The message is intended to be received by the
-  // Drake Visualizer.
-  void PublishLoadRobot() const;
 
   // A pointer to the LCM subsystem. It is through this object that LCM messages
   // are published.

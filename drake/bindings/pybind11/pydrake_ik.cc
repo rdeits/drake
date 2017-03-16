@@ -117,6 +117,22 @@ PYBIND11_PLUGIN(_pydrake_ik) {
            std::vector<int>, const Eigen::Matrix3Xd&))
          &QuasiStaticConstraint::addContact);
 
+  py::class_<WorldCoMConstraint, RigidBodyConstraint> (
+    m, "WorldCoMConstraint")
+    .def("__init__",
+         [](WorldCoMConstraint& instance,
+            RigidBodyTree<double>* model,
+            const Eigen::Vector3d& lb,
+            const Eigen::Vector3d& ub,
+            const Eigen::Vector2d& tspan,
+            const std::set<int>& model_instance_id) {
+            new (&instance) WorldCoMConstraint(model, lb, ub, tspan,
+                                               model_instance_id);
+          },
+        py::arg("model"), py::arg("lb"), py::arg("ub"),
+        py::arg("tspan") = DrakeRigidBodyConstraint::default_tspan,
+        py::arg("model_instance_id") = WorldCoMConstraint::defaultRobotNumSet);
+
   py::class_<IKoptions>(m, "IKoptions")
     .def(py::init<RigidBodyTree<double> *>())
     .def("setQ", &IKoptions::setQ)

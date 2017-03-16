@@ -410,6 +410,7 @@ class WorldCoMConstraint : public PositionConstraint {
           WorldCoMConstraint::defaultRobotNumSet);
   virtual ~WorldCoMConstraint();
   void updateRobotnum(const std::set<int>& model_instance_id);
+  static const std::set<int> defaultRobotNumSet;
 
  protected:
   virtual void evalPositions(KinematicsCache<double>& cache,
@@ -418,7 +419,6 @@ class WorldCoMConstraint : public PositionConstraint {
                          std::vector<std::string>& cnst_names) const;
 
  private:
-  static const std::set<int> defaultRobotNumSet;
 
   std::set<int> m_model_instance_id_;
 };
