@@ -19,6 +19,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     z_inactive_guess_tol = .01;
     multiple_contacts = false;
     gurobi_present = false;
+    matlab_lcp = false;
   end
 
   methods
@@ -56,6 +57,11 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       if isfield(options, 'multiple_contacts')
         typecheck(options.multiple_contacts, 'logical');
         obj.multiple_contacts = options.multiple_contacts;
+      end
+
+      if isfield(options, 'matlab_lcp')
+        typecheck(options.matlab_lcp, 'logical');
+        obj.matlab_lcp = options.matlab_lcp;
       end
 
       if ~isfield(options,'enable_fastqp')
@@ -285,7 +291,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     end
 
     function [obj,z,Mvn,wvn,dz,dMvn,dwvn] = solveLCP(obj,t,x,u)
-      if (nargout<5 && obj.gurobi_present && obj.manip.only_loops && obj.manip.mex_model_ptr~=0 && ~obj.position_control)
+      if (nargout<5 && obj.gurobi_present && obj.manip.only_loops && obj.manip.mex_model_ptr~=0 && ~obj.position_control && ~obj.matlab_lcp)
         [obj,z,Mvn,wvn] = solveMexLCP(obj,t,x,u);
         return;
       end
@@ -730,7 +736,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
             cartesian_force = cartesian_force - repmat(beta',3,1).*contact_data.d{i};
           end
 
-          lcmgl = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton,'LCP contact forces');
+          lcmgl = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton,'LCP contact forces');
           for j=1:nC
             point = forwardKin(obj.manip,kinsol,contact_data.idxA(j),contact_data.xA(:,j));
             lcmgl.glColor3f(.4,.2,.4);
@@ -964,12 +970,12 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       [varargout{:}]=collisionDetectTerrain(obj.manip,varargin{:});
     end
 
-    function [obj,id] = addStateConstraint(obj,con)
+    function [obj,manip_id] = addStateConstraint(obj,varargin)
       % keep two copies of the constraints around ... :(
       % todo: re-evaluate whether that is really necessary
-      [obj,id] = addStateConstraint@DrakeSystem(obj,con);
-      [obj.manip,manip_id] = obj.manip.addStateConstraint(obj,con);
-      assert(id==manip_id);
+      [obj,id] = addStateConstraint@DrakeSystem(obj,varargin{:});
+      [obj.manip,manip_id] = obj.manip.addStateConstraint(varargin{:});
+%       assert(id==manip_id);
     end
 
     function obj = updateStateConstraint(obj,id,con)
@@ -1037,6 +1043,11 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       varargout = cell(1,nargout);
       [varargout{:}] = centerOfMassJacobianDotTimesV(obj.manip,varargin{:});
     end
+    function varargout = forwardJacDotTimesV(obj,varargin)
+      varargout = cell(1,nargout);
+      [varargout{:}] = forwardJacDotTimesV(obj.manip,varargin{:});
+    end
+    
 
     function varargout = centroidalMomentumMatrixDotTimesV(obj,varargin)
       varargout=cell(1,nargout);
