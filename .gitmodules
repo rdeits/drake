@@ -95,4 +95,4 @@
 	url = https://github.com/RobotLocomotion/lcmtypes.git
 [submodule "externals/snopt"]
 	path = externals/snopt
-	url = git@github.com:HarvardAgileRoboticsLab/snopt.git
+	url = git@github.com:RobotLocomotion/snopt.git
