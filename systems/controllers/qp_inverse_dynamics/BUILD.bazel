@@ -6,7 +6,6 @@ load(
     "@drake//tools/skylark:drake_proto.bzl",
     "drake_cc_proto_library",
 )
-load("//tools/skylark:test_tags.bzl", "gurobi_test_tags")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -167,7 +166,6 @@ drake_cc_googletest(
         "test/iiwa.id_controller_config",
         "//drake/manipulation/models/iiwa_description:models",
     ],
-    tags = gurobi_test_tags(),
     deps = [
         ":param_parser",
         ":qp_inverse_dynamics",
@@ -186,7 +184,6 @@ drake_cc_googletest(
         "test/iiwa.id_controller_config",
         "//drake/manipulation/models/iiwa_description:models",
     ],
-    tags = gurobi_test_tags(),
     deps = [
         ":qp_inverse_dynamics_system",
         "//drake/common:find_resource",
@@ -224,7 +221,6 @@ drake_cc_googletest(
         "test/valkyrie.id_controller_config",
         "//drake/examples/valkyrie:models",
     ],
-    tags = gurobi_test_tags(),
     deps = [
         "//drake/common:find_resource",
         "//drake/common/test_utilities:eigen_matrix_compare",

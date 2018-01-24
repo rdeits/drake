@@ -6,7 +6,6 @@ load(
     "drake_cc_googletest",
     "drake_cc_library",
 )
-load("//tools/skylark:test_tags.bzl", "gurobi_test_tags")
 load("//tools/lint:lint.bzl", "add_lint_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -118,7 +117,6 @@ drake_cc_binary(
         ":config/valkyrie.id_controller_config",
         "//examples/valkyrie:models",
     ],
-    tags = gurobi_test_tags(),
     deps = [
         ":humanoid_controller",
         "//common:find_resource",
@@ -152,7 +150,6 @@ drake_cc_googletest(
         ":config/valkyrie.id_controller_config",
         "//examples/valkyrie:models",
     ],
-    tags = gurobi_test_tags(),
     deps = [
         ":humanoid_plan_eval_system",
         ":humanoid_status",

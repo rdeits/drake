@@ -63,7 +63,7 @@ void QpInverseDynamics::SetTempMatricesToZero() {
 
 QpInverseDynamics::QpInverseDynamics() {
   if (!solver_.available()) {
-    throw std::runtime_error("Gurobi solver not available.");
+    throw std::runtime_error("Ipopt solver not available.");
   }
 }
 
