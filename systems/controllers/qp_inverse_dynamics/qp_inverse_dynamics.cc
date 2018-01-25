@@ -617,6 +617,13 @@ int QpInverseDynamics::Control(const RobotKinematicState<double>& rs,
 
   ////////////////////////////////////////////////////////////////////
   // Call solver.
+
+  // TODO: remove this check when #7862 is resolved
+  for (auto& binding : prog_->GetAllLinearConstraints()) {
+    auto constraint = binding.constraint();
+    DRAKE_DEMAND(static_cast<size_t>(constraint->lower_bound().size()) != constraint->num_constraints());
+  }
+
   solvers::SolutionResult result = solver_.Solve(*(prog_.get()));
   if (result != solvers::SolutionResult::kSolutionFound) {
     drake::log()->warn("Solution not found.");
