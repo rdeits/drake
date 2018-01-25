@@ -621,7 +621,8 @@ int QpInverseDynamics::Control(const RobotKinematicState<double>& rs,
   // TODO: remove this check when #7862 is resolved
   for (auto& binding : prog_->GetAllLinearConstraints()) {
     auto constraint = binding.constraint();
-    DRAKE_DEMAND(static_cast<size_t>(constraint->lower_bound().size()) != constraint->num_constraints());
+    std::cout << constraint->get_description() << std::endl;
+    DRAKE_DEMAND(static_cast<size_t>(constraint->lower_bound().size()) == constraint->num_constraints());
   }
 
   solvers::SolutionResult result = solver_.Solve(*(prog_.get()));
