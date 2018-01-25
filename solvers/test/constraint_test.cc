@@ -71,6 +71,34 @@ GTEST_TEST(testConstraint, testQuadraticConstraintHessian) {
   EXPECT_TRUE(CompareMatrices(constraint2.b(), b));
 }
 
+GTEST_TEST(testConstraint, testUpdateCoefficients) {
+  Eigen::Matrix2d Q2;
+  Eigen::Vector2d b2;
+  // clang-format off
+  Q2 << 1, 0,
+        0, 1;
+  // clang-format on
+  b2 << 1, 2;
+  LinearEqualityConstraint constraint(Q2, b2);
+  EXPECT_TRUE(constraint.lower_bound().size() == 2);
+  EXPECT_TRUE(constraint.upper_bound().size() == 2);
+  EXPECT_TRUE(constraint.num_constraints() == 2);
+
+  Eigen::MatrixXd Q3(3, 2);
+  Eigen::Vector3d b3;
+  // clang-format off
+  Q3 << 1, 0,
+        0, 1,
+        0, 0;
+  // clang-format on
+  b3 << 1, 2, 3;
+
+  constraint.UpdateCoefficients(Q3, b3);
+  EXPECT_TRUE(constraint.lower_bound().size() == 3);
+  EXPECT_TRUE(constraint.upper_bound().size() == 3);
+  EXPECT_TRUE(constraint.num_constraints() == 3);
+}
+
 // Tests if the Lorentz Cone constraint is imposed correctly.
 void TestLorentzConeEval(const Eigen::Ref<const Eigen::MatrixXd> A,
                          const Eigen::Ref<const Eigen::VectorXd> b,
