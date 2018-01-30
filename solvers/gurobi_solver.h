@@ -3,6 +3,9 @@
 #include <functional>
 #include <string>
 
+// NOLINTNEXTLINE(build/include) False positive due to weird include style.
+#include "gurobi_c++.h"
+
 #include "drake/common/autodiff.h"
 #include "drake/common/drake_copyable.h"
 #include "drake/solvers/decision_variable.h"
@@ -15,7 +18,10 @@ class GurobiSolver : public MathematicalProgramSolverInterface {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(GurobiSolver)
 
-  GurobiSolver() = default;
+  GurobiSolver() {
+    env = new (GRBenv*) ();
+    *env = nullptr;
+  };
   ~GurobiSolver() override = default;
 
   // This solver is implemented in various pieces depending on if
@@ -115,6 +121,7 @@ class GurobiSolver : public MathematicalProgramSolverInterface {
   // or NULL if no callback has been supplied.
   MipNodeCallbackFunction mip_node_callback_;
   MipSolCallbackFunction mip_sol_callback_;
+  GRBenv** env;
 };
 
 }  // end namespace solvers

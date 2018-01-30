@@ -602,8 +602,10 @@ SolutionResult GurobiSolver::Solve(MathematicalProgram& prog) const {
   // We only process quadratic costs and linear / bounding box
   // constraints.
 
-  GRBenv* env = nullptr;
-  GRBloadenv(&env, nullptr);
+  // GRBenv* env = nullptr;
+  if (!(*env)) {
+    GRBloadenv(env, nullptr);
+  }
 
   DRAKE_ASSERT(prog.generic_costs().empty());
   DRAKE_ASSERT(prog.generic_constraints().empty());
@@ -681,7 +683,7 @@ SolutionResult GurobiSolver::Solve(MathematicalProgram& prog) const {
                               &gurobi_var_type, &xlow, &xupp);
 
   GRBmodel* model = nullptr;
-  GRBnewmodel(env, &model, "gurobi_model", num_gurobi_vars, nullptr, &xlow[0],
+  GRBnewmodel(*env, &model, "gurobi_model", num_gurobi_vars, nullptr, &xlow[0],
               &xupp[0], gurobi_var_type.data(), nullptr);
 
   int error = 0;
@@ -767,7 +769,7 @@ SolutionResult GurobiSolver::Solve(MathematicalProgram& prog) const {
   if (error) {
     result = SolutionResult::kInvalidInput;
     drake::log()->info("Gurobi returns code {}, with message \"{}\".\n", error,
-                       GRBgeterrormsg(env));
+                       GRBgeterrormsg(*env));
   } else {
     int optimstatus = 0;
     GRBgetintattr(model, GRB_INT_ATTR_STATUS, &optimstatus);
@@ -835,7 +837,7 @@ SolutionResult GurobiSolver::Solve(MathematicalProgram& prog) const {
   prog.SetSolverId(id());
 
   GRBfreemodel(model);
-  GRBfreeenv(env);
+  // GRBfreeenv(env);
 
   return result;
 }
