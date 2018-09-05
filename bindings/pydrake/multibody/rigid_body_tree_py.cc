@@ -199,7 +199,10 @@ PYBIND11_MODULE(rigid_body_tree, m) {
     .def("getNumPositionConstraints",
          &RigidBodyTree<double>::getNumPositionConstraints)
     .def("Clone", &RigidBodyTree<double>::Clone)
-    .def("__copy__", &RigidBodyTree<double>::Clone);
+    .def("__copy__", &RigidBodyTree<double>::Clone)
+    .def("getMass", &RigidBodyTree<double>::getMass,
+         py::arg("model_instance_id_set") =
+           RigidBodyTreeConstants::default_model_instance_id_set);
 
   // This lambda defines RigidBodyTree methods which are defined for a given
   // templated type. The methods are either (a) direct explicit template
@@ -220,6 +223,8 @@ PYBIND11_MODULE(rigid_body_tree, m) {
          py::arg("cache"),
          py::arg("model_instance_id_set") =
            RigidBodyTreeConstants::default_model_instance_id_set)
+      .def("computePositionNameToIndexMap",
+           &RigidBodyTree<double>::computePositionNameToIndexMap)
       .def("transformVelocityToQDot", [](const RigidBodyTree<double>& tree,
                                           const KinematicsCache<T>& cache,
                                           const VectorX<T>& v) {
@@ -271,7 +276,12 @@ PYBIND11_MODULE(rigid_body_tree, m) {
            py::arg("model_instance_id_set") =
              RigidBodyTreeConstants::default_model_instance_id_set,
            py::arg("in_terms_of_qdot") = false)
-      // centroidalMomentumMatrix
+      .def("centroidalMomentumMatrix",
+           &RigidBodyTree<double>::centroidalMomentumMatrix<T>,
+           py::arg("cache"),
+           py::arg("model_instance_id_set") =
+             RigidBodyTreeConstants::default_model_instance_id_set,
+           py::arg("in_terms_of_qdot") = false)
       // forwardKinPositionGradient
       .def("geometricJacobianDotTimesV",
            &RigidBodyTree<double>::geometricJacobianDotTimesV<T>,
@@ -284,7 +294,11 @@ PYBIND11_MODULE(rigid_body_tree, m) {
            py::arg("cache"),
            py::arg("model_instance_id_set") =
              RigidBodyTreeConstants::default_model_instance_id_set)
-      // centroidalMomentumMatrixDotTimesV
+      .def("centroidalMomentumMatrixDotTimesV",
+           &RigidBodyTree<double>::centroidalMomentumMatrixDotTimesV<T>,
+           py::arg("cache"),
+           py::arg("model_instance_id_set") =
+             RigidBodyTreeConstants::default_model_instance_id_set)
       .def("positionConstraints",
            &RigidBodyTree<double>::positionConstraints<T>,
            py::arg("cache"))

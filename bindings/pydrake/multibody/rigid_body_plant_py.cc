@@ -233,10 +233,14 @@ PYBIND11_MODULE(rigid_body_plant, m) {
              py::keep_alive<1, 3>())
         .def("set_publish_period", &Class::set_publish_period,
              py::arg("period"))
+        .def("PlaybackTrajectory", 
+            [](const Class* self, 
+               const trajectories::PiecewisePolynomial<double>& input_trajectory) 
+            {
+                return self->PlaybackTrajectory(input_trajectory);
+            }, py::arg("input_trajectory"))
         .def("ReplayCachedSimulation", &Class::ReplayCachedSimulation)
         .def("PublishLoadRobot", &Class::PublishLoadRobot);
-    // TODO(eric.cousineau): Bind `PlaybackTrajectory` when
-    // `PiecewisePolynomial` has bindings.
   }
 }
 
