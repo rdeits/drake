@@ -10,6 +10,7 @@
 #include "drake/math/roll_pitch_yaw.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/math/wrap_to.h"
+#include "drake/math/quaternion.h"
 
 namespace drake {
 namespace pydrake {
@@ -84,6 +85,13 @@ PYBIND11_MODULE(math, m) {
            overload_cast_explicit<Eigen::Quaternion<T>>(
               &RotationMatrix<T>::ToQuaternion))
       .def_static("Identity", &RotationMatrix<T>::Identity);
+
+  m.def("Slerp", 
+        [](const Eigen::VectorXd &q1, const Eigen::VectorXd &q2, const double interpolation_parameter) {
+          return Slerp(q1, q2, interpolation_parameter);
+        },
+        py::arg("q1"), py::arg("q2"), py::arg("interpolation_parameter"));
+
 
   // General math overloads.
   // N.B. Additional overloads will be added for autodiff, symbolic, etc, by

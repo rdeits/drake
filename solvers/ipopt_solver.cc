@@ -510,7 +510,7 @@ SolutionResult IpoptSolver::Solve(MathematicalProgram& prog) const {
   Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
   app->RethrowNonIpoptException(true);
 
-  const double tol = 1.05e-10;  // Note: SNOPT is only 1e-6, but in #3712 we
+  const double tol = 1e-4;  // Note: SNOPT is only 1e-6, but in #3712 we
   // diagnosed that the CompareMatrices tolerance needed to be the sqrt of the
   // constr_viol_tol
   app->Options()->SetNumericValue("tol", tol);
@@ -520,7 +520,8 @@ SolutionResult IpoptSolver::Solve(MathematicalProgram& prog) const {
   app->Options()->SetStringValue("hessian_approximation", "limited-memory");
   // Note: 0<= print_level <= 12, with higher numbers more verbose.  4 is very
   // useful for debugging.
-  app->Options()->SetIntegerValue("print_level", 2);
+  app->Options()->SetIntegerValue("print_level", 4);
+  // app->Options()->SetStringValue("derivative_test", "first-order");
 
   for (const auto& it : prog.GetSolverOptionsDouble(id())) {
     app->Options()->SetNumericValue(it.first, it.second);
